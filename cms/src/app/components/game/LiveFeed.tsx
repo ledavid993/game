@@ -20,7 +20,7 @@ export function LiveFeed({
   const [visibleEvents, setVisibleEvents] = useState<KillEvent[]>([]);
   const [newEvent, setNewEvent] = useState<KillEvent | null>(null);
   const latestEventId = useRef<string | null>(null);
-  const clearHighlightTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const clearHighlightTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const recentEvents = killEvents.slice(-maxEvents);
@@ -45,6 +45,7 @@ export function LiveFeed({
     return () => {
       if (clearHighlightTimeout.current) {
         clearTimeout(clearHighlightTimeout.current);
+        clearHighlightTimeout.current = null;
       }
     };
   }, [killEvents, maxEvents, onPlayerKilled]);

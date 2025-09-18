@@ -69,6 +69,8 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    games: Game;
+    'game-players': GamePlayer;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -77,6 +79,8 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    games: GamesSelect<false> | GamesSelect<true>;
+    'game-players': GamePlayersSelect<false> | GamePlayersSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -158,6 +162,45 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "games".
+ */
+export interface Game {
+  id: number;
+  code: string;
+  status?: ('lobby' | 'active' | 'completed' | 'cancelled') | null;
+  hostSocketId?: string | null;
+  settings: {
+    cooldownMinutes: number;
+    maxPlayers: number;
+    murdererCount: number;
+    theme?: ('christmas' | 'halloween') | null;
+  };
+  startedAt?: string | null;
+  endedAt?: string | null;
+  summary?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-players".
+ */
+export interface GamePlayer {
+  id: number;
+  game: number | Game;
+  displayName: string;
+  playerCode: string;
+  role?: ('civilian' | 'murderer') | null;
+  isAlive?: boolean | null;
+  deviceType?: ('unknown' | 'mobile' | 'desktop' | 'tv') | null;
+  socketId?: string | null;
+  cooldownExpiresAt?: string | null;
+  kills?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -170,6 +213,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'games';
+        value: number | Game;
+      } | null)
+    | ({
+        relationTo: 'game-players';
+        value: number | GamePlayer;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -252,6 +303,45 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "games_select".
+ */
+export interface GamesSelect<T extends boolean = true> {
+  code?: T;
+  status?: T;
+  hostSocketId?: T;
+  settings?:
+    | T
+    | {
+        cooldownMinutes?: T;
+        maxPlayers?: T;
+        murdererCount?: T;
+        theme?: T;
+      };
+  startedAt?: T;
+  endedAt?: T;
+  summary?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "game-players_select".
+ */
+export interface GamePlayersSelect<T extends boolean = true> {
+  game?: T;
+  displayName?: T;
+  playerCode?: T;
+  role?: T;
+  isAlive?: T;
+  deviceType?: T;
+  socketId?: T;
+  cooldownExpiresAt?: T;
+  kills?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

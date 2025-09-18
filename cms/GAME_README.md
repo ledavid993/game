@@ -131,6 +131,7 @@ cms/
 │   ├── components/game/
 │   │   ├── GameLanding.tsx             # Reusable landing component
 │   │   ├── HostDashboard.tsx           # TV display component
+│   │   ├── PlayerPageShell.tsx         # Client shell for player route
 │   │   ├── PlayerView.tsx              # Mobile player interface
 │   │   ├── LiveFeed.tsx                # Real-time kill feed
 │   │   └── ThemeToggle.tsx             # Theme switcher
