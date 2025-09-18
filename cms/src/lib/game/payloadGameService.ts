@@ -188,7 +188,7 @@ async function serializeGameStateInternal(game: Game, players: GamePlayer[]): Pr
 }
 
 async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: Game; players: GamePlayer[] }> {
-  const playersResult = await payload.find<{ docs: GamePlayer[] }>({
+  const playersResult = (await payload.find({
     collection: 'game-players',
     where: {
       game: {
@@ -197,7 +197,7 @@ async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: 
     },
     depth: 0,
     limit: 100,
-  });
+  })) as unknown as { docs: GamePlayer[] };
 
   return {
     game,
@@ -255,7 +255,7 @@ export async function createGameSession({
     Math.floor(trimmedNames.length / 3) || 1,
   );
 
-  const game = await payload.create<Game>({
+  const game = (await payload.create({
     collection: 'games',
     data: {
       code: gameCode,
@@ -270,7 +270,7 @@ export async function createGameSession({
       },
       killEvents: [],
     },
-  });
+  })) as unknown as Game;
 
   const playersToCreate: PlayerSeed[] = trimmedNames.map((name) => ({
     game: game.id,
@@ -287,12 +287,12 @@ export async function createGameSession({
   const createdPlayers: GamePlayer[] = [];
 
   for (const player of assignedPlayers) {
-    const created = await payload.create<GamePlayer>({
+    const created = (await payload.create({
       collection: 'game-players',
       data: {
         ...player,
       },
-    });
+    })) as unknown as GamePlayer;
     createdPlayers.push(created);
   }
 
@@ -323,7 +323,7 @@ export async function getSerializedGameState({
   let playerDoc: GamePlayer | null = null;
 
   if (playerCode) {
-    const playerResult = await payload.find({
+    const playerResult = (await payload.find({
       collection: 'game-players',
       where: {
         playerCode: {
@@ -332,22 +332,22 @@ export async function getSerializedGameState({
       },
       depth: 0,
       limit: 1,
-    });
+    })) as unknown as { docs: GamePlayer[] };
 
     if (playerResult.docs.length === 0) {
       throw new Error('Player not found');
     }
 
     playerDoc = playerResult.docs[0] as GamePlayer;
-    game = await payload.findByID<Game>({
+    game = (await payload.findByID({
       collection: 'games',
       id: String(playerDoc.game),
       depth: 0,
-    });
+    })) as unknown as Game;
   }
 
   if (!game && gameCode) {
-    const gameResult = await payload.find({
+    const gameResult = (await payload.find({
       collection: 'games',
       where: {
         code: {
@@ -356,7 +356,7 @@ export async function getSerializedGameState({
       },
       depth: 0,
       limit: 1,
-    });
+    })) as unknown as { docs: Game[] };
 
     if (gameResult.docs.length === 0) {
       throw new Error('Game not found');
@@ -409,7 +409,7 @@ function emitToGame(gameCode: string, event: string, payload: unknown) {
 export async function resetGame({ gameCode }: ResetGameOptions) {
   const payload = await getPayloadClient();
 
-  const gameResult = await payload.find({
+  const gameResult = (await payload.find({
     collection: 'games',
     where: {
       code: {
@@ -418,7 +418,7 @@ export async function resetGame({ gameCode }: ResetGameOptions) {
     },
     depth: 0,
     limit: 1,
-  });
+  })) as unknown as { docs: Game[] };
 
   if (gameResult.docs.length === 0) {
     throw new Error('Game not found');
@@ -445,7 +445,7 @@ export async function recordKillAttempt({
 }: KillAttemptOptions): Promise<KillAttemptResult> {
   const payload = await getPayloadClient();
 
-  const gameResult = await payload.find({
+  const gameResult = (await payload.find({
     collection: 'games',
     where: {
       code: {
@@ -454,7 +454,7 @@ export async function recordKillAttempt({
     },
     depth: 0,
     limit: 1,
-  });
+  })) as unknown as { docs: Game[] };
 
   if (gameResult.docs.length === 0) {
     throw new Error('Game not found');
@@ -469,7 +469,7 @@ export async function recordKillAttempt({
     };
   }
 
-  const playersResult = await payload.find({
+  const playersResult = (await payload.find({
     collection: 'game-players',
     where: {
       playerCode: {
@@ -478,7 +478,7 @@ export async function recordKillAttempt({
     },
     depth: 0,
     limit: 2,
-  });
+  })) as unknown as { docs: GamePlayer[] };
 
   if (playersResult.docs.length < 2) {
     return {
@@ -536,7 +536,7 @@ export async function recordKillAttempt({
 
   const now = new Date().toISOString();
 
-  const updatedVictim = await payload.update<GamePlayer>({
+  await payload.update({
     collection: 'game-players',
     id: String(victimDoc.id),
     data: {
@@ -544,7 +544,7 @@ export async function recordKillAttempt({
     },
   });
 
-  const updatedMurderer = await payload.update<GamePlayer>({
+  await payload.update({
     collection: 'game-players',
     id: String(murdererDoc.id),
     data: {
@@ -554,10 +554,22 @@ export async function recordKillAttempt({
     },
   });
 
+  const updatedVictim = (await payload.findByID({
+    collection: 'game-players',
+    id: String(victimDoc.id),
+    depth: 0,
+  })) as unknown as GamePlayer;
+
+  const updatedMurderer = (await payload.findByID({
+    collection: 'game-players',
+    id: String(murdererDoc.id),
+    depth: 0,
+  })) as unknown as GamePlayer;
+
   const killEventId = generateCode('KILL', 8);
   const killMessage = `💀 ${victimDoc.displayName} was eliminated by ${murdererDoc.displayName}`;
 
-  const updatedGame = await payload.update<Game>({
+  await payload.update({
     collection: 'games',
     id: String(game.id),
     data: {
@@ -565,8 +577,8 @@ export async function recordKillAttempt({
         ...(game.killEvents ?? []),
         {
           eventId: killEventId,
-          murdererName: murdererDoc.displayName,
-          victimName: victimDoc.displayName,
+          murdererName: updatedMurderer.displayName,
+          victimName: updatedVictim.displayName,
           timestamp: now,
           successful: true,
           message: killMessage,
@@ -574,6 +586,12 @@ export async function recordKillAttempt({
       ],
     },
   });
+
+  const updatedGame = (await payload.findByID({
+    collection: 'games',
+    id: String(game.id),
+    depth: 0,
+  })) as unknown as Game;
 
   const { players } = await getGameAndPlayers(payload, updatedGame);
   const serializedState = await serializeGameStateInternal(updatedGame, players);
@@ -590,13 +608,13 @@ export async function recordKillAttempt({
   }
 
   emitToGame(gameCode, 'player-killed', {
-      id: killEventId,
-      murderer: updatedMurderer.displayName,
-      victim: updatedVictim.displayName,
-      timestamp: Date.now(),
-      successful: true,
-      message: killMessage,
-    });
+    id: killEventId,
+    murderer: updatedMurderer.displayName,
+    victim: updatedVictim.displayName,
+    timestamp: Date.now(),
+    successful: true,
+    message: killMessage,
+  });
 
   emitToGame(gameCode, 'game-state', serializedState);
 
@@ -615,21 +633,21 @@ export async function recordKillAttempt({
 
   return {
     success: true,
-      message: `You successfully killed ${updatedVictim.displayName}!`,
-      killEvent: {
-        id: killEventId,
-        murderer: updatedMurderer.displayName,
-        victim: updatedVictim.displayName,
-        message: killMessage,
-        successful: true,
-        timestamp: Date.now(),
-      },
-    };
+    message: `You successfully killed ${updatedVictim.displayName}!`,
+    killEvent: {
+      id: killEventId,
+      murderer: updatedMurderer.displayName,
+      victim: updatedVictim.displayName,
+      message: killMessage,
+      successful: true,
+      timestamp: Date.now(),
+    },
+  };
 }
 
 export async function updateHostSocket(gameCode: string, socketId: string) {
   const payload = await getPayloadClient();
-  const gameResult = await payload.find({
+  const gameResult = (await payload.find({
     collection: 'games',
     where: {
       code: {
@@ -638,7 +656,7 @@ export async function updateHostSocket(gameCode: string, socketId: string) {
     },
     depth: 0,
     limit: 1,
-  });
+  })) as unknown as { docs: Game[] };
 
   if (gameResult.docs.length === 0) {
     return;
@@ -657,7 +675,7 @@ export async function updateHostSocket(gameCode: string, socketId: string) {
 
 export async function updatePlayerSocket(playerCode: string, socketId: string) {
   const payload = await getPayloadClient();
-  const playerResult = await payload.find({
+  const playerResult = (await payload.find({
     collection: 'game-players',
     where: {
       playerCode: {
@@ -666,7 +684,7 @@ export async function updatePlayerSocket(playerCode: string, socketId: string) {
     },
     depth: 0,
     limit: 1,
-  });
+  })) as unknown as { docs: GamePlayer[] };
 
   if (playerResult.docs.length === 0) {
     return;
@@ -685,7 +703,7 @@ export async function updatePlayerSocket(playerCode: string, socketId: string) {
 
 export async function clearSocket(socketId: string) {
   const payload = await getPayloadClient();
-  const players = await payload.find({
+  const players = (await payload.find({
     collection: 'game-players',
     where: {
       socketId: {
@@ -694,7 +712,7 @@ export async function clearSocket(socketId: string) {
     },
     depth: 0,
     limit: 20,
-  });
+  })) as unknown as { docs: GamePlayer[] };
 
   await Promise.all(
     players.docs.map((doc) =>

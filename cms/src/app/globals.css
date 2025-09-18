@@ -1,0 +1,152 @@
+@import 'tailwindcss';
+@layer base {
+  :root {
+    --manor-midnight: #090b10;
+    --manor-shadow: #111622;
+    --manor-wine: #40131f;
+    --manor-ember: #b1361e;
+    --manor-candle: #f7d7a1;
+    --manor-parchment: #d8c7a1;
+    --manor-ivy: #3f4f44;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top, rgba(177, 54, 30, 0.28), transparent 55%),
+      linear-gradient(
+        160deg,
+        rgba(9, 11, 16, 0.96) 0%,
+        rgba(16, 19, 27, 0.92) 55%,
+        rgba(4, 5, 8, 0.98) 100%
+      );
+    color: var(--manor-candle);
+    font-family:
+      var(--font-lato, 'Lato'),
+      -apple-system,
+      BlinkMacSystemFont,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+    min-height: 100vh;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+}
+
+@layer components {
+  .manor-card {
+    border-radius: 1.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 1.5rem;
+    box-shadow: 0 25px 45px -20px rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    background-image:
+      radial-gradient(circle at top left, rgba(221, 170, 104, 0.18), transparent 45%),
+      radial-gradient(circle at bottom right, rgba(148, 22, 36, 0.28), transparent 55%),
+      linear-gradient(135deg, rgba(12, 15, 24, 0.86), rgba(19, 16, 25, 0.82));
+  }
+
+  .manor-card--accent {
+    border: 1px solid rgba(177, 54, 30, 0.4);
+    box-shadow: 0 28px 50px -18px rgba(177, 54, 30, 0.6);
+  }
+
+  .manor-divider {
+    height: 1px;
+    width: 100%;
+    background-image: linear-gradient(90deg, transparent, rgba(247, 215, 161, 0.75), transparent);
+  }
+
+  .btn-primary {
+    background-color: var(--manor-ember);
+    color: #fff;
+    font-family: var(--font-lato, 'Lato'), sans-serif;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 18px 30px -12px rgba(177, 54, 30, 0.55);
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 22px 36px -12px rgba(177, 54, 30, 0.75);
+  }
+
+  .btn-secondary {
+    background-color: rgba(63, 79, 68, 0.85);
+    color: #fff;
+    font-family: var(--font-lato, 'Lato'), sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    transition: background-color 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    background-color: #2b3a31;
+  }
+
+  .btn-danger {
+    background-color: #c33030;
+    color: #fff;
+    font-family: var(--font-lato, 'Lato'), sans-serif;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    transition: background-color 0.2s ease;
+  }
+
+  .btn-danger:hover {
+    background-color: #a02222;
+  }
+
+  .mobile-touch {
+    min-height: 48px;
+    min-width: 48px;
+    font-size: 1.05rem;
+  }
+
+  .player-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
+
+  @screen md {
+    .player-grid {
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    }
+  }
+
+  @screen tv {
+    .player-grid {
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    }
+  }
+}
+
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--manor-ember) var(--manor-midnight);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: var(--manor-midnight);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--manor-ember);
+    border-radius: 4px;
+  }
+}

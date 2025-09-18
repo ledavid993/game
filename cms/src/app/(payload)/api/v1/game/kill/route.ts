@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const result = await recordKillAttempt({ gameCode, murdererCode, victimCode });
 
     const status = result.success ? 200 : 400;
-    return NextResponse.json({ success: result.success, ...result }, { status });
+    return NextResponse.json(result, { status });
   } catch (error) {
     console.error('Error recording kill attempt', error);
     const message = error instanceof Error ? error.message : 'Kill attempt failed';

@@ -252,7 +252,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           </div>
           <p className="font-body text-sm text-manor-parchment/80 md:text-base">{narrativeStatus}</p>
           {cooldownStatus && player.role === 'murderer' && (
-            <div className="rounded-xl border border-manor-ember/30 bg-manor-wine/20 p-4">
+            <div className="rounded-xl border border-[rgba(177,54,30,0.3)] bg-manor-wine/20 p-4">
               <p className="font-body text-xs uppercase tracking-[0.35em] text-manor-parchment/60">
                 Murderer Cooldown
               </p>
@@ -310,9 +310,9 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
                 {availableTargets.map((target) => (
                   <button
                     key={target.id}
-                    className={`rounded-2xl border p-4 text-left transition hover:border-manor-ember/50 ${
+                    className={`rounded-2xl border p-4 text-left transition hover:border-[rgba(177,54,30,0.5)] ${
                       selectedTarget === target.id
-                        ? 'border-manor-ember bg-manor-wine/30'
+                        ? 'border-[rgba(177,54,30,0.8)] bg-manor-wine/30'
                         : 'border-white/10 bg-black/20'
                     }`}
                     onClick={() => setSelectedTarget(target.id)}

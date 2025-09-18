@@ -101,7 +101,7 @@ export default function GameLanding() {
               Scan the host’s sigil or accept their invitation. Every phone becomes a secret
               journal—follow orders, alibis, and sinister opportunities.
             </p>
-            <div className="rounded-lg border border-manor-ember/40 bg-manor-wine/20 px-4 py-3 text-sm font-body text-manor-candle/80">
+            <div className="rounded-lg border border-[rgba(177,54,30,0.4)] bg-manor-wine/20 px-4 py-3 text-sm font-body text-manor-candle/80">
               💡 Tip: Add the page to your home screen for a full-screen dossier.
             </div>
           </motion.div>

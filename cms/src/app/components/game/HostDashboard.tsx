@@ -196,7 +196,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               {isConnected ? 'Manor link established' : 'Attempting to reach the manor...'}
             </span>
             {gameState?.isActive && (
-              <span className="rounded-full border border-manor-ember/40 px-3 py-1 text-manor-candle/90">
+              <span className="rounded-full border border-[rgba(177,54,30,0.4)] px-3 py-1 text-manor-candle/90">
                 Game Active · {gameState.stats.alivePlayers} guests breathing
               </span>
             )}
@@ -225,7 +225,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                 value={playerNames}
                 onChange={(event) => setPlayerNames(event.target.value)}
                 placeholder="Eleanor Glass, Victor North, Adelaide Finch, Henry Wolfe"
-                className="h-32 w-full rounded-xl border border-white/10 bg-manor-shadow/60 p-4 font-body text-sm text-manor-candle/85 placeholder:text-manor-parchment/40 focus:border-manor-ember/40 focus:outline-none focus:ring-2 focus:ring-manor-ember/30 md:text-base"
+                className="h-32 w-full rounded-xl border border-white/10 bg-manor-shadow/60 p-4 font-body text-sm text-manor-candle/85 placeholder:text-manor-parchment/40 focus:border-[rgba(177,54,30,0.4)] focus:outline-none focus:ring-2 focus:ring-manor-ember/30 md:text-base"
               />
               <div className="manor-divider" />
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -276,7 +276,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                     <p className="mt-2 break-words font-body text-xs text-manor-parchment/60">{link}</p>
                     {showQRCodes && (
                       <div className="mt-4 flex justify-center">
-                        <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-manor-ember/40 bg-white/95 text-xs font-semibold text-manor-wine">
+                        <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-[rgba(177,54,30,0.4)] bg-white/95 text-xs font-semibold text-manor-wine">
                           QR CODE
                         </div>
                       </div>

@@ -1,12 +1,15 @@
-import forms from '@tailwindcss/forms';
-import typography from '@tailwindcss/typography';
+import forms from '@tailwindcss/forms'
+import typography from '@tailwindcss/typography'
 
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}', // root-level app/
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './src/app/**/*.{js,ts,jsx,tsx,mdx}', // src/ if you actually use it
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
     extend: {
@@ -36,7 +39,7 @@ export default {
         body: ['var(--font-lato)', 'sans-serif'],
       },
       animation: {
-        'snowfall': 'snowfall 10s linear infinite',
+        snowfall: 'snowfall 10s linear infinite',
         'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
         'bounce-slow': 'bounce 2s infinite',
       },
@@ -47,7 +50,7 @@ export default {
         },
       },
       screens: {
-        'tv': '1200px',
+        tv: '1200px',
       },
     },
   },

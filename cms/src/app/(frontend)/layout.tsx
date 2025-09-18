@@ -2,7 +2,7 @@ import React from 'react'
 import type { Metadata, Viewport } from 'next'
 import { Cinzel, IM_Fell_English, Lato } from 'next/font/google'
 
-import '../../styles/global.css'
+import '../globals.css'
 
 const cinzel = Cinzel({
   subsets: ['latin'],
