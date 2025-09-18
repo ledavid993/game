@@ -25,6 +25,13 @@ export const GamePlayers: CollectionConfig = {
       index: true,
     },
     {
+      name: 'joinedAt',
+      type: 'date',
+      hooks: {
+        beforeChange: [({ value }) => value ?? new Date().toISOString()],
+      },
+    },
+    {
       name: 'displayName',
       type: 'text',
       required: true,
@@ -70,6 +77,10 @@ export const GamePlayers: CollectionConfig = {
     },
     {
       name: 'cooldownExpiresAt',
+      type: 'date',
+    },
+    {
+      name: 'lastKillAt',
       type: 'date',
     },
     {

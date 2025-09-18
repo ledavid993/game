@@ -41,6 +41,10 @@ export const Games: CollectionConfig = {
       admin: { readOnly: true },
     },
     {
+      name: 'hostDisplayName',
+      type: 'text',
+    },
+    {
       name: 'settings',
       type: 'group',
       fields: [
@@ -72,6 +76,7 @@ export const Games: CollectionConfig = {
           options: [
             { label: 'Christmas', value: 'christmas' },
             { label: 'Halloween', value: 'halloween' },
+            { label: 'Classic', value: 'classic' },
           ],
         },
       ],
@@ -83,6 +88,39 @@ export const Games: CollectionConfig = {
     {
       name: 'endedAt',
       type: 'date',
+    },
+    {
+      name: 'killEvents',
+      type: 'array',
+      fields: [
+        {
+          name: 'eventId',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'murdererName',
+          type: 'text',
+        },
+        {
+          name: 'victimName',
+          type: 'text',
+        },
+        {
+          name: 'timestamp',
+          type: 'date',
+          required: true,
+        },
+        {
+          name: 'message',
+          type: 'text',
+        },
+        {
+          name: 'successful',
+          type: 'checkbox',
+          defaultValue: true,
+        },
+      ],
     },
     {
       name: 'summary',
