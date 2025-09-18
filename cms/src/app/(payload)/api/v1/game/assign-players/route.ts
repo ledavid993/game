@@ -88,6 +88,15 @@ export async function POST(request: NextRequest) {
 
     // Create game-player assignments
     const assignedPlayers: GamePlayer[] = [];
+    const assignedPlayerDetails: Array<{
+      id: string;
+      name: string;
+      username: string;
+      phone?: string | null;
+      email?: string | null;
+      gamesPlayed: number;
+      assignmentCode: string;
+    }> = [];
     for (const player of playersToAssign) {
       const gamePlayerCode = generateCode('GP', 8);
 
@@ -105,12 +114,22 @@ export async function POST(request: NextRequest) {
       })) as unknown as GamePlayer;
 
       assignedPlayers.push(gamePlayer);
+      assignedPlayerDetails.push({
+        id: player.playerCode,
+        name: player.displayName,
+        username: player.username,
+        phone: player.phone ?? undefined,
+        email: player.email ?? undefined,
+        gamesPlayed: player.gamesPlayed || 0,
+        assignmentCode: gamePlayer.playerCode,
+      });
     }
 
     return NextResponse.json({
       success: true,
       assigned: assignedPlayers.length,
       skipped: playerCodes.length - assignedPlayers.length,
+      players: assignedPlayerDetails,
     });
   } catch (error) {
     console.error('Error assigning players to game:', error);
@@ -138,14 +157,41 @@ export async function DELETE(request: NextRequest) {
       limit: 1,
     })) as unknown as { docs: GamePlayer[] };
 
-    if (gamePlayerResult.docs.length === 0) {
-      return NextResponse.json({ success: false, error: 'Player assignment not found' }, { status: 404 });
+    let assignment = gamePlayerResult.docs[0];
+
+    if (!assignment) {
+      // Fallback for legacy clients that send the registry player code instead of assignment code
+      const registryResult = (await payload.find({
+        collection: 'player-registry',
+        where: { playerCode: { equals: playerCode } },
+        depth: 0,
+        limit: 1,
+      })) as unknown as { docs: PlayerRegistry[] };
+
+      if (registryResult.docs.length === 0) {
+        return NextResponse.json({ success: false, error: 'Player assignment not found' }, { status: 404 });
+      }
+
+      const playerId = registryResult.docs[0].id;
+
+      const assignmentByPlayer = (await payload.find({
+        collection: 'game-players',
+        where: { player: { equals: playerId } },
+        depth: 0,
+        limit: 1,
+      })) as unknown as { docs: GamePlayer[] };
+
+      if (assignmentByPlayer.docs.length === 0) {
+        return NextResponse.json({ success: false, error: 'Player assignment not found' }, { status: 404 });
+      }
+
+      assignment = assignmentByPlayer.docs[0];
     }
 
     // Remove the game-player assignment (but keep player in registry)
     await payload.delete({
       collection: 'game-players',
-      id: String(gamePlayerResult.docs[0].id),
+      id: String(assignment.id),
     });
 
     return NextResponse.json({ success: true });

@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       sort: 'createdAt',
     })) as unknown as { docs: GamePlayer[] };
 
-    const assignedPlayers = gamePlayersResult.docs.map(gamePlayer => {
+    const assignedPlayers = gamePlayersResult.docs.map((gamePlayer) => {
       const player = gamePlayer.player as PlayerRegistry;
       return {
         id: player.playerCode,
@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
         phone: player.phone,
         email: player.email,
         gamesPlayed: player.gamesPlayed || 0,
+        assignmentCode: gamePlayer.playerCode,
       };
     });
 

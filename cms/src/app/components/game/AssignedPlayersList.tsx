@@ -25,6 +25,14 @@ export function AssignedPlayersList({
   const [isAssigningAll, setIsAssigningAll] = useState(false)
   const [isRemovingAll, setIsRemovingAll] = useState(false)
 
+  const registryLookup = useMemo(() => {
+    const map = new Map<string, PlayerData>()
+    registryPlayers.forEach(player => {
+      map.set(player.id, player)
+    })
+    return map
+  }, [registryPlayers])
+
   // Filter available players (not already assigned)
   const availablePlayers = useMemo(() => {
     const assignedIds = new Set(assignedPlayers.map(p => p.id))
@@ -71,8 +79,46 @@ export function AssignedPlayersList({
         if (data.assigned === 0) {
           toast(`${player.name} is already assigned`, { icon: 'ℹ️' })
         } else {
-          // Smart update: only add if actually assigned
-          onAssignedPlayersChange(prevPlayers => [...prevPlayers, player])
+          const returnedPlayers = Array.isArray(data.players)
+            ? data.players
+                .filter((assigned: unknown): assigned is Partial<PlayerData> =>
+                  typeof assigned === 'object' && assigned !== null
+                )
+                .map((assigned) => {
+                  const base = (assigned.id && registryLookup.get(assigned.id)) || player
+
+                  return {
+                    id: assigned.id ?? base.id,
+                    name: assigned.name ?? base.name,
+                    username: assigned.username ?? base.username,
+                    phone: assigned.phone ?? base.phone,
+                    email: assigned.email ?? base.email,
+                    assignmentCode: assigned.assignmentCode ?? base.assignmentCode ?? base.id,
+                    gamesPlayed: assigned.gamesPlayed ?? base.gamesPlayed,
+                  }
+                })
+            : []
+
+          if (returnedPlayers.length > 0) {
+            onAssignedPlayersChange(prevPlayers => {
+              const next = [...prevPlayers]
+              returnedPlayers.forEach((assignedPlayer) => {
+                const existingIndex = next.findIndex(p => p.id === assignedPlayer.id)
+                if (existingIndex >= 0) {
+                  next[existingIndex] = { ...next[existingIndex], ...assignedPlayer }
+                } else {
+                  next.push(assignedPlayer as PlayerData)
+                }
+              })
+              return next
+            })
+          } else {
+            onAssignedPlayersChange(prevPlayers => [
+              ...prevPlayers,
+              { ...player, assignmentCode: player.assignmentCode ?? player.id }
+            ])
+          }
+
           toast.success(`${player.name} assigned to game`)
         }
       } else {
@@ -90,7 +136,7 @@ export function AssignedPlayersList({
         return newState
       })
     }
-  }, [registryPlayers, assignedPlayers, maxPlayers, onAssignedPlayersChange])
+  }, [registryLookup, assignedPlayers, maxPlayers, onAssignedPlayersChange])
 
   const removePlayer = useCallback(async (playerId: string) => {
     const player = assignedPlayers.find(p => p.id === playerId)
@@ -100,7 +146,8 @@ export function AssignedPlayersList({
     setLoadingStates(prev => ({ ...prev, [playerId]: true }))
 
     try {
-      const response = await fetch(`/api/v1/game/assign-players?playerCode=${encodeURIComponent(playerId)}&_t=${Date.now()}`, {
+      const assignmentCode = player.assignmentCode ?? player.id
+      const response = await fetch(`/api/v1/game/assign-players?playerCode=${encodeURIComponent(assignmentCode)}&_t=${Date.now()}`, {
         method: 'DELETE',
         headers: {
           'Cache-Control': 'no-cache',
@@ -138,7 +185,6 @@ export function AssignedPlayersList({
     }
 
     const playersToAssign = availablePlayers.slice(0, maxPlayers - assignedPlayers.length)
-    const playerCodes = playersToAssign.map(p => p.id)
 
     setIsAssigningAll(true)
 
@@ -150,7 +196,7 @@ export function AssignedPlayersList({
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
         },
-        body: JSON.stringify({ playerCodes })
+        body: JSON.stringify({ playerCodes: playersToAssign.map(p => p.id) })
       })
 
       const data = await response.json()
@@ -159,10 +205,58 @@ export function AssignedPlayersList({
         if (data.assigned === 0) {
           toast(`All players already assigned`, { icon: 'ℹ️' })
         } else {
-          // Smart update: only add the players that were actually assigned
-          const actuallyAssigned = playersToAssign.slice(0, data.assigned)
-          onAssignedPlayersChange(prevPlayers => [...prevPlayers, ...actuallyAssigned])
-          toast.success(`${data.assigned} players assigned to game`)
+          const returnedPlayers = Array.isArray(data.players)
+            ? data.players
+                .filter((assigned: unknown): assigned is Partial<PlayerData> =>
+                  typeof assigned === 'object' && assigned !== null
+                )
+                .map((assigned) => {
+                  const base = (assigned.id && registryLookup.get(assigned.id)) ||
+                    playersToAssign.find(p => p.id === assigned.id) ||
+                    null
+
+                  const fallbackName = base?.name ?? 'Unknown Guest'
+                  const fallbackUsername = base?.username ?? 'mysterious'
+
+                  return {
+                    id: assigned.id ?? base?.id ?? '',
+                    name: assigned.name ?? fallbackName,
+                    username: assigned.username ?? fallbackUsername,
+                    phone: assigned.phone ?? base?.phone,
+                    email: assigned.email ?? base?.email,
+                    assignmentCode: assigned.assignmentCode ?? base?.assignmentCode ?? assigned.id ?? base?.id,
+                    gamesPlayed: assigned.gamesPlayed ?? base?.gamesPlayed,
+                  }
+                })
+                .filter((assigned): assigned is PlayerData => Boolean(assigned.id))
+            : []
+
+          if (returnedPlayers.length > 0) {
+            onAssignedPlayersChange(prevPlayers => {
+              const next = [...prevPlayers]
+              returnedPlayers.forEach((assignedPlayer) => {
+                const existingIndex = next.findIndex(p => p.id === assignedPlayer.id)
+                if (existingIndex >= 0) {
+                  next[existingIndex] = { ...next[existingIndex], ...assignedPlayer }
+                } else {
+                  next.push(assignedPlayer)
+                }
+              })
+              return next
+            })
+            toast.success(`${returnedPlayers.length} players assigned to game`)
+          } else {
+            const fallback = playersToAssign.slice(0, data.assigned).map(player => ({
+              ...player,
+              assignmentCode: player.assignmentCode ?? player.id,
+            }))
+            if (fallback.length > 0) {
+              onAssignedPlayersChange(prevPlayers => [...prevPlayers, ...fallback])
+              toast.success(`${fallback.length} players assigned to game`)
+            } else {
+              toast.success(`${data.assigned} players assigned to game`)
+            }
+          }
         }
       } else {
         throw new Error(data.error || 'Failed to assign players')
@@ -174,7 +268,7 @@ export function AssignedPlayersList({
     } finally {
       setIsAssigningAll(false)
     }
-  }, [availablePlayers, assignedPlayers, maxPlayers, onAssignedPlayersChange])
+  }, [availablePlayers, assignedPlayers, maxPlayers, onAssignedPlayersChange, registryLookup])
 
   const removeAllPlayers = useCallback(async () => {
     if (assignedPlayers.length === 0) return
@@ -184,15 +278,16 @@ export function AssignedPlayersList({
     try {
       // Remove all assigned players
       await Promise.all(
-        assignedPlayers.map(player =>
-          fetch(`/api/v1/game/assign-players?playerCode=${encodeURIComponent(player.id)}&_t=${Date.now()}`, {
+        assignedPlayers.map(player => {
+          const assignmentCode = player.assignmentCode ?? player.id
+          return fetch(`/api/v1/game/assign-players?playerCode=${encodeURIComponent(assignmentCode)}&_t=${Date.now()}`, {
             method: 'DELETE',
             headers: {
               'Cache-Control': 'no-cache',
               'Pragma': 'no-cache'
             }
           })
-        )
+        })
       )
 
       onAssignedPlayersChange([])

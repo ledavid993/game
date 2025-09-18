@@ -10,6 +10,8 @@ export interface PlayerData {
   username: string
   phone?: string
   email?: string
+  assignmentCode?: string
+  gamesPlayed?: number
 }
 
 interface PlayerCardProps {

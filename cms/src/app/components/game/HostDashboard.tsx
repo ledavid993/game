@@ -455,16 +455,6 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               {/* Middle Column - Game Settings & Assigned Players */}
               <div className="h-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 <div className="space-y-6 p-1">
-                  {/* Game Settings - only show when not active */}
-                  {!currentState?.isActive && (
-                    <GameSettings
-                      settings={gameSettings}
-                      onSettingsChange={handleGameSettingsChange}
-                      playerCount={assignedPlayers.length}
-                      disabled={isUpdatingStatus}
-                    />
-                  )}
-
                   <AssignedPlayersList
                     registryPlayers={players}
                     assignedPlayers={assignedPlayers}
@@ -478,6 +468,15 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               {/* Right Column - Game Status & Stats */}
               <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 <div className="space-y-6 p-1">
+                  {/* Game Settings - only show when not active */}
+                  {!currentState?.isActive && (
+                    <GameSettings
+                      settings={gameSettings}
+                      onSettingsChange={handleGameSettingsChange}
+                      playerCount={assignedPlayers.length}
+                      disabled={isUpdatingStatus}
+                    />
+                  )}
                   {/* Game Status Summary */}
                   <div className="manor-card">
                     <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-manor-candle mb-4">
@@ -598,34 +597,36 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
           </motion.section>
 
           {/* Live Feed Section - Full width under the three columns */}
-          <motion.section
-            initial="hidden"
-            animate="visible"
-            variants={sectionVariants}
-            transition={{ delay: 0.3, duration: 0.6, ease: 'easeOut' }}
-            className="mx-auto w-full max-w-[90rem] mb-6"
-          >
-            <div className="manor-card">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-manor text-xl uppercase tracking-[0.25em] text-manor-candle">
-                  Live Chronicle
-                </h3>
-                <div className="flex items-center gap-2 text-sm">
-                  <div
-                    className={`w-2 h-2 rounded-full ${currentState?.isActive ? 'bg-green-400' : 'bg-gray-500'}`}
-                  />
-                  <span className="text-manor-parchment/80">
-                    {currentState?.isActive ? 'Broadcasting' : 'Awaiting Performance'}
-                  </span>
+          {currentState?.isActive ?? (
+            <motion.section
+              initial="hidden"
+              animate="visible"
+              variants={sectionVariants}
+              transition={{ delay: 0.3, duration: 0.6, ease: 'easeOut' }}
+              className="mx-auto w-full max-w-[90rem] mb-6"
+            >
+              <div className="manor-card">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-manor text-xl uppercase tracking-[0.25em] text-manor-candle">
+                    Live Chronicle
+                  </h3>
+                  <div className="flex items-center gap-2 text-sm">
+                    <div
+                      className={`w-2 h-2 rounded-full ${currentState?.isActive ? 'bg-green-400' : 'bg-gray-500'}`}
+                    />
+                    <span className="text-manor-parchment/80">
+                      {currentState?.isActive ? 'Broadcasting' : 'Awaiting Performance'}
+                    </span>
+                  </div>
                 </div>
+                <LiveFeed
+                  killEvents={currentState?.killEvents || []}
+                  onPlayerKilled={() => undefined}
+                  className="bg-transparent"
+                />
               </div>
-              <LiveFeed
-                killEvents={currentState?.killEvents || []}
-                onPlayerKilled={() => undefined}
-                className="bg-transparent"
-              />
-            </div>
-          </motion.section>
+            </motion.section>
+          )}
 
           {/* Player Links Section - only show when game is active and has players */}
           {Object.keys(playerLinks).length > 0 && currentState?.isActive && (
