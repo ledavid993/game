@@ -13,14 +13,17 @@ interface PlayerStatusGridProps {
   density?: PlayerDensity
 }
 
-const densityStyles: Record<PlayerDensity, {
-  grid: string
-  cardPadding: string
-  emojiSize: string
-  nameSize: string
-  statusSize: string
-  murdererSize: string
-}> = {
+const densityStyles: Record<
+  PlayerDensity,
+  {
+    grid: string
+    cardPadding: string
+    emojiSize: string
+    nameSize: string
+    statusSize: string
+    murdererSize: string
+  }
+> = {
   normal: {
     grid: 'gap-3 px-4 sm:px-6 py-5 sm:py-6 [grid-template-columns:repeat(auto-fit,minmax(145px,1fr))] auto-rows-auto',
     cardPadding: 'p-4',
@@ -83,17 +86,49 @@ export function PlayerStatusGrid({
           transition={{ delay: Math.min(index * 0.04, 0.4), duration: 0.25 }}
           className={`
             relative rounded-xl border-2 ${styles.cardPadding} text-center transition-all duration-300
-            ${player.isAlive
-              ? 'border-green-500/40 bg-green-900/20 shadow-lg shadow-green-500/10 hover:border-green-400/70'
-              : 'border-red-500/40 bg-red-900/15 shadow-lg shadow-red-500/10 opacity-80'}
+            ${
+              player.isAlive
+                ? 'border-green-500/40 bg-green-900/20 shadow-lg shadow-green-500/10 hover:border-green-400/70'
+                : 'border-red-500/40 bg-red-900/15 shadow-lg shadow-red-500/10 opacity-80'
+            }
             backdrop-blur-sm
           `}
         >
           <div className={`${styles.emojiSize} ${isUltra ? 'mb-1.5' : 'mb-2 sm:mb-3'}`}>
             {player.isAlive ? '😶' : '💀'}
           </div>
-          <div className={`font-body ${styles.nameSize} font-semibold text-manor-candle mb-1 truncate`}>
-            {player.name}
+          <div
+            className={`relative overflow-hidden font-body ${styles.nameSize} font-semibold text-manor-candle mb-1 ${
+              density !== 'normal' ? 'px-1' : ''
+            }`}
+          >
+            {(() => {
+              const threshold = density === 'ultra' ? 8 : density === 'dense' ? 10 : 14
+              const shouldScroll = player.name.length > threshold
+
+              if (!shouldScroll) {
+                return <span className="block whitespace-nowrap">{player.name}</span>
+              }
+
+              const marqueeDuration = Math.max(3, player.name.length * 0.3)
+              const marqueeContent = [player.name, player.name, player.name]
+
+              return (
+                <div className="relative w-full overflow-hidden">
+                  <div
+                    className="flex whitespace-nowrap gap-8"
+                    style={{
+                      willChange: 'transform',
+                      animation: `player-status-marquee ${marqueeDuration}s linear infinite`
+                    }}
+                  >
+                    {marqueeContent.map((content, idx) => (
+                      <span key={`${player.id}-marquee-${idx}`}>{content}</span>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
           <div
             className={`uppercase font-bold ${styles.statusSize} ${player.isAlive ? 'text-green-300' : 'text-red-300'} ${isUltra ? 'font-medium tracking-[0.25em]' : ''}`}
@@ -101,7 +136,7 @@ export function PlayerStatusGrid({
           >
             {player.isAlive ? 'Alive' : 'Departed'}
           </div>
-          {(!player.isAlive && player.role === 'murderer') && (
+          {!player.isAlive && player.role === 'murderer' && (
             <div className={`${styles.murdererSize} text-manor-parchment/60 mt-2`}>
               🔪 Revealed Murderer
             </div>
@@ -111,6 +146,13 @@ export function PlayerStatusGrid({
           )}
         </motion.div>
       ))}
+
+    <style jsx>{`
+      @keyframes player-status-marquee {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-100%); }
+      }
+    `}</style>
     </div>
   )
 }
