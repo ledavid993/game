@@ -125,13 +125,21 @@ export class GameManager {
   }
 
   private assignRoles(players: Player[]): void {
+    const requestedMurderers = this.gameState.settings.murdererCount;
+
+    if (requestedMurderers > players.length) {
+      throw new Error(`Cannot assign ${requestedMurderers} murderers to ${players.length} players. Murderer count must be less than or equal to player count.`);
+    }
+
+    if (requestedMurderers < 1) {
+      throw new Error('Must have at least 1 murderer');
+    }
+
     // Shuffle players array
     const shuffled = [...players].sort(() => Math.random() - 0.5);
 
-    // Assign murderers
-    const murdererCount = Math.min(this.gameState.settings.murdererCount, Math.floor(players.length / 3));
-
-    for (let i = 0; i < murdererCount; i++) {
+    // Assign exact number of murderers requested
+    for (let i = 0; i < requestedMurderers; i++) {
       shuffled[i].role = 'murderer';
     }
 

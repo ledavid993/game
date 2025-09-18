@@ -71,6 +71,7 @@ export interface Config {
     media: Media;
     games: Game;
     'game-players': GamePlayer;
+    'player-registry': PlayerRegistry;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -81,6 +82,7 @@ export interface Config {
     media: MediaSelect<false> | MediaSelect<true>;
     games: GamesSelect<false> | GamesSelect<true>;
     'game-players': GamePlayersSelect<false> | GamePlayersSelect<true>;
+    'player-registry': PlayerRegistrySelect<false> | PlayerRegistrySelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -172,9 +174,11 @@ export interface Game {
   hostDisplayName?: string | null;
   settings: {
     cooldownMinutes: number;
+    /**
+     * Maximum number of players allowed in the game (1-1000)
+     */
     maxPlayers: number;
     murdererCount: number;
-    theme?: ('christmas' | 'halloween' | 'classic') | null;
   };
   startedAt?: string | null;
   endedAt?: string | null;
@@ -200,8 +204,14 @@ export interface Game {
 export interface GamePlayer {
   id: number;
   game: number | Game;
+  /**
+   * Reference to the player in the registry
+   */
+  player: number | PlayerRegistry;
   joinedAt?: string | null;
-  displayName: string;
+  /**
+   * Unique code for this player in this specific game session
+   */
   playerCode: string;
   role?: ('civilian' | 'murderer') | null;
   isAlive?: boolean | null;
@@ -210,6 +220,45 @@ export interface GamePlayer {
   cooldownExpiresAt?: string | null;
   lastKillAt?: string | null;
   kills?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Persistent registry of all players that can be added to games
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "player-registry".
+ */
+export interface PlayerRegistry {
+  id: number;
+  /**
+   * Full name of the player
+   */
+  displayName: string;
+  /**
+   * Unique username for the player (e.g., MysticRaven)
+   */
+  username: string;
+  /**
+   * Unique player code for game access
+   */
+  playerCode: string;
+  /**
+   * Optional phone number for notifications
+   */
+  phone?: string | null;
+  /**
+   * Optional email address for notifications
+   */
+  email?: string | null;
+  /**
+   * Whether this player is available for games
+   */
+  isActive?: boolean | null;
+  /**
+   * Total number of games this player has participated in
+   */
+  gamesPlayed?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -235,6 +284,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'game-players';
         value: number | GamePlayer;
+      } | null)
+    | ({
+        relationTo: 'player-registry';
+        value: number | PlayerRegistry;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -333,7 +386,6 @@ export interface GamesSelect<T extends boolean = true> {
         cooldownMinutes?: T;
         maxPlayers?: T;
         murdererCount?: T;
-        theme?: T;
       };
   startedAt?: T;
   endedAt?: T;
@@ -358,8 +410,8 @@ export interface GamesSelect<T extends boolean = true> {
  */
 export interface GamePlayersSelect<T extends boolean = true> {
   game?: T;
+  player?: T;
   joinedAt?: T;
-  displayName?: T;
   playerCode?: T;
   role?: T;
   isAlive?: T;
@@ -368,6 +420,21 @@ export interface GamePlayersSelect<T extends boolean = true> {
   cooldownExpiresAt?: T;
   lastKillAt?: T;
   kills?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "player-registry_select".
+ */
+export interface PlayerRegistrySelect<T extends boolean = true> {
+  displayName?: T;
+  username?: T;
+  playerCode?: T;
+  phone?: T;
+  email?: T;
+  isActive?: T;
+  gamesPlayed?: T;
   updatedAt?: T;
   createdAt?: T;
 }

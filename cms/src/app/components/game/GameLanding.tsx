@@ -13,28 +13,28 @@ const fadeUp: Variants = {
 
 export default function GameLanding() {
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(177,54,30,0.2),_transparent_55%),linear-gradient(140deg,_rgba(9,11,16,0.96)_0%,_rgba(17,22,34,0.92)_55%,_rgba(4,5,9,0.98)_100%)]">
+    <div className="min-h-screen w-full bg-[radial-gradient(circle_at_top,_rgba(177,54,30,0.2),_transparent_55%),linear-gradient(140deg,_rgba(9,11,16,0.96)_0%,_rgba(17,22,34,0.92)_55%,_rgba(4,5,9,0.98)_100%)]">
       <div className="absolute inset-0 opacity-20" aria-hidden>
         <div className="h-full w-full bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')]" />
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-6 md:p-12">
+      <div className="relative z-10 container mx-auto px-4 sm:px-6 py-8 sm:py-12 md:py-16 flex flex-col justify-center min-h-screen">
         <motion.div
-          className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center"
+          className="flex flex-col items-center text-center space-y-4 sm:space-y-6"
           initial="hidden"
           animate="visible"
           variants={fadeUp}
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
           <motion.h1
-            className="font-manor text-4xl uppercase tracking-[0.3em] text-manor-candle md:text-6xl lg:text-7xl"
+            className="font-manor text-[clamp(2rem,8vw,5rem)] uppercase tracking-[0.3em] text-manor-candle"
             variants={fadeUp}
             transition={{ delay: 0.1, duration: 0.8, ease: 'easeOut' }}
           >
             Manor of Whispers
           </motion.h1>
           <motion.p
-            className="font-gothic text-lg leading-relaxed text-manor-parchment/90 md:text-xl"
+            className="font-gothic text-[clamp(1rem,2.5vw,1.25rem)] leading-relaxed text-manor-parchment/90 max-w-3xl"
             variants={fadeUp}
             transition={{ delay: 0.25, duration: 0.8, ease: 'easeOut' }}
           >
@@ -55,7 +55,7 @@ export default function GameLanding() {
           </motion.p>
         </motion.div>
 
-        <div className="mt-12 grid w-full max-w-6xl grid-cols-1 gap-6 md:grid-cols-[1.1fr_0.05fr_1fr]">
+        <div className="mt-8 sm:mt-12 grid w-full grid-cols-1 gap-4 sm:gap-6 md:grid-cols-[1.1fr_0.05fr_1fr]">
           <motion.div
             className="group"
             initial="hidden"

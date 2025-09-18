@@ -4,6 +4,10 @@ import { Cinzel, IM_Fell_English, Lato } from 'next/font/google'
 
 import '../globals.css'
 
+// Force this layout to be dynamic (no caching)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 const cinzel = Cinzel({
   subsets: ['latin'],
   display: 'swap',

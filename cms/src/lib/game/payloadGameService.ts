@@ -16,8 +16,17 @@ import type {
 
 const SINGLE_GAME_CODE = 'GAME_MAIN';
 
+interface PlayerInput {
+  id: string;
+  name: string;
+  username: string;
+  phone?: string;
+  email?: string;
+}
+
 interface StartGameOptions {
-  playerNames: string[];
+  players?: PlayerInput[];
+  playerNames?: string[];
   settings?: Partial<Game['settings']>;
   hostDisplayName?: string;
   baseUrl: string;
@@ -48,14 +57,14 @@ interface SerializedStateWithPlayer extends SerializedGameState {
 
 let payloadClient: Payload | null = null;
 
-async function getPayloadClient(): Promise<Payload> {
+export async function getPayloadClient(): Promise<Payload> {
   if (!payloadClient) {
     payloadClient = await getPayload({ config: await configPromise });
   }
   return payloadClient;
 }
 
-function generateCode(prefix: string, length = 6): string {
+export function generateCode(prefix: string, length = 6): string {
   const bytes = randomBytes(length);
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let token = '';
@@ -68,7 +77,10 @@ function generateCode(prefix: string, length = 6): string {
 type PlayerSeed = {
   game: Game['id'];
   displayName: string;
+  username: string;
   playerCode: string;
+  phone?: string;
+  email?: string;
   role?: 'murderer' | 'civilian';
   isAlive?: boolean;
   joinedAt?: string;
@@ -76,12 +88,19 @@ type PlayerSeed = {
 };
 
 function assignRoles<T extends PlayerSeed>(players: T[], murdererCount: number): T[] {
+  if (murdererCount > players.length) {
+    throw new Error(`Cannot assign ${murdererCount} murderers to ${players.length} players. Murderer count must be less than or equal to player count.`);
+  }
+
+  if (murdererCount < 1) {
+    throw new Error('Must have at least 1 murderer');
+  }
+
   const sanitized = [...players];
   const shuffled = sanitized.sort(() => Math.random() - 0.5);
-  const finalMurderers = Math.min(murdererCount, Math.floor(players.length / 3) || 1);
 
   for (let i = 0; i < shuffled.length; i++) {
-    shuffled[i].role = i < finalMurderers ? 'murderer' : 'civilian';
+    shuffled[i].role = i < murdererCount ? 'murderer' : 'civilian';
   }
 
   return shuffled;
@@ -89,9 +108,15 @@ function assignRoles<T extends PlayerSeed>(players: T[], murdererCount: number):
 
 function toPlayer(doc: GamePlayer): Player {
   const joinedAt = doc.joinedAt ? new Date(doc.joinedAt).getTime() : Date.now();
+
+  // Extract player name from the related PlayerRegistry
+  const playerName = typeof doc.player === 'object' && doc.player
+    ? doc.player.displayName
+    : doc.playerCode; // fallback to playerCode if no name available
+
   return {
     id: doc.playerCode,
-    name: doc.displayName,
+    name: playerName,
     role: doc.role ?? 'civilian',
     isAlive: doc.isAlive ?? true,
     lastKillTime: doc.lastKillAt ? new Date(doc.lastKillAt).getTime() : undefined,
@@ -169,6 +194,8 @@ async function serializeGameStateInternal(game: Game, players: GamePlayer[]): Pr
   const endTime = game.endedAt ? new Date(game.endedAt).getTime() : undefined;
 
   const serializedPlayers = players.map(toPlayer);
+  console.log('Serializing game state with players:', players);
+  console.log('Serialized players:', serializedPlayers);
 
   return {
     id: game.code,
@@ -180,7 +207,7 @@ async function serializeGameStateInternal(game: Game, players: GamePlayer[]): Pr
     settings: {
       cooldownMinutes: game.settings?.cooldownMinutes ?? 10,
       maxPlayers: game.settings?.maxPlayers ?? 20,
-      murdererCount: game.settings?.murdererCount ?? 2,
+      murdererCount: game.settings?.murdererCount ?? 1,
       theme: (game.settings?.theme as 'christmas' | 'halloween' | 'classic') ?? 'christmas',
     },
     stats: calculateStats(game, players),
@@ -195,7 +222,7 @@ async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: 
         equals: game.id,
       },
     },
-    depth: 0,
+    depth: 1, // Load player relationship data
     limit: 100,
   })) as unknown as { docs: GamePlayer[] };
 
@@ -206,6 +233,7 @@ async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: 
 }
 
 export async function createGameSession({
+  players,
   playerNames,
   settings,
   hostDisplayName,
@@ -213,20 +241,50 @@ export async function createGameSession({
 }: StartGameOptions) {
   const payload = await getPayloadClient();
 
-  if (!Array.isArray(playerNames) || playerNames.length < 3) {
-    throw new Error('At least 3 players are required to begin');
+  let finalPlayers: PlayerInput[];
+
+  // Handle new player structure
+  if (players && Array.isArray(players)) {
+    if (players.length < 1) {
+      throw new Error('At least 1 player is required to begin');
+    }
+
+    // Validate player data
+    const invalidPlayers = players.filter(p => !p.name.trim() || !p.username.trim());
+    if (invalidPlayers.length > 0) {
+      throw new Error('All players must have a name and username');
+    }
+
+    finalPlayers = players;
+  }
+  // Handle legacy playerNames structure
+  else if (playerNames && Array.isArray(playerNames)) {
+    if (playerNames.length < 1) {
+      throw new Error('At least 1 player is required to begin');
+    }
+
+    const trimmedNames = playerNames
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
+
+    if (trimmedNames.length < 1) {
+      throw new Error('At least 1 valid player name is required');
+    }
+
+    // Convert legacy format to new structure
+    finalPlayers = trimmedNames.map((name, index) => ({
+      id: `legacy-${index}`,
+      name,
+      username: `Player${index + 1}`,
+    }));
+  } else {
+    throw new Error('Either players or playerNames must be provided');
   }
 
-  const trimmedNames = playerNames
-    .map((name) => name.trim())
-    .filter((name) => name.length > 0);
-
-  if (trimmedNames.length < 3) {
-    throw new Error('At least 3 valid player names are required');
-  }
+  console.log('Final players to process:', finalPlayers);
 
   const now = new Date().toISOString();
-  const murdererCount = Math.min(settings?.murdererCount ?? 2, Math.floor(trimmedNames.length / 3) || 1);
+  const murdererCount = settings?.murdererCount ?? 1;
 
   const existingGames = (await payload.find({
     collection: 'games',
@@ -270,14 +328,17 @@ export async function createGameSession({
       limit: 1000,
     })) as unknown as { docs: GamePlayer[] };
 
+    console.log('Deleting existing players:', existingPlayers.docs.length);
     await Promise.all(
-      existingPlayers.docs.map((player) =>
-        payload.delete({
+      existingPlayers.docs.map(async (player) => {
+        console.log('Deleting player:', player.displayName, player.username);
+        return payload.delete({
           collection: 'game-players',
           id: String(player.id),
-        }),
-      ),
+        });
+      }),
     );
+    console.log('Finished deleting existing players');
 
     game = (await payload.findByID({
       collection: 'games',
@@ -303,28 +364,41 @@ export async function createGameSession({
     })) as unknown as Game;
   }
 
-  const playersToCreate: PlayerSeed[] = trimmedNames.map((name) => ({
+  const playersToCreate: PlayerSeed[] = finalPlayers.map((player) => ({
     game: game.id,
-    displayName: name,
+    displayName: player.name,
+    username: player.username,
     playerCode: generateCode('PLAYER', 8),
+    phone: player.phone || undefined,
+    email: player.email || undefined,
     role: 'civilian',
     isAlive: true,
     joinedAt: now,
     kills: 0,
   }));
 
+  console.log('Players to create:', playersToCreate);
+
   const assignedPlayers = assignRoles(playersToCreate, murdererCount);
+  console.log('Assigned players:', assignedPlayers);
 
   const createdPlayers: GamePlayer[] = [];
 
   for (const player of assignedPlayers) {
-    const created = (await payload.create({
-      collection: 'game-players',
-      data: {
-        ...player,
-      },
-    })) as unknown as GamePlayer;
-    createdPlayers.push(created);
+    console.log('Creating player:', player);
+    try {
+      const created = (await payload.create({
+        collection: 'game-players',
+        data: {
+          ...player,
+        },
+      })) as unknown as GamePlayer;
+      console.log('Created player:', created);
+      createdPlayers.push(created);
+    } catch (error) {
+      console.error('Error creating player:', error);
+      throw error;
+    }
   }
 
   const serializedState = await serializeGameStateInternal(game, createdPlayers);
@@ -473,13 +547,33 @@ export async function resetGame({ gameCode }: ResetGameOptions) {
 
   const game = gameResult.docs[0] as Game;
 
-  await payload.update({
+  // First: Remove all game-player associations (but keep players in registry)
+  const existingPlayers = (await payload.find({
+    collection: 'game-players',
+    where: {
+      game: {
+        equals: game.id,
+      },
+    },
+    depth: 0,
+    limit: 1000,
+  })) as unknown as { docs: GamePlayer[] };
+
+  console.log('Removing game-player associations:', existingPlayers.docs.length);
+  await Promise.all(
+    existingPlayers.docs.map(async (player) => {
+      return payload.delete({
+        collection: 'game-players',
+        id: String(player.id),
+      });
+    }),
+  );
+
+  // Second: Delete the entire game session
+  console.log('Deleting game session:', game.id);
+  await payload.delete({
     collection: 'games',
     id: String(game.id),
-    data: {
-      status: 'completed',
-      endedAt: new Date().toISOString(),
-    },
   });
 
   emitToGame(gameCode, 'game-ended', 'reset');

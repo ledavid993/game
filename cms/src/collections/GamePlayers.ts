@@ -7,8 +7,8 @@ export const GamePlayers: CollectionConfig = {
     plural: 'Game Players',
   },
   admin: {
-    useAsTitle: 'displayName',
-    defaultColumns: ['displayName', 'role', 'isAlive', 'game', 'updatedAt'],
+    useAsTitle: 'playerCode',
+    defaultColumns: ['player', 'playerCode', 'role', 'isAlive', 'game', 'updatedAt'],
   },
   access: {
     read: () => true,
@@ -25,6 +25,16 @@ export const GamePlayers: CollectionConfig = {
       index: true,
     },
     {
+      name: 'player',
+      type: 'relationship',
+      relationTo: 'player-registry',
+      required: true,
+      index: true,
+      admin: {
+        description: 'Reference to the player in the registry',
+      },
+    },
+    {
       name: 'joinedAt',
       type: 'date',
       hooks: {
@@ -32,16 +42,14 @@ export const GamePlayers: CollectionConfig = {
       },
     },
     {
-      name: 'displayName',
-      type: 'text',
-      required: true,
-    },
-    {
       name: 'playerCode',
       type: 'text',
       required: true,
       unique: true,
       index: true,
+      admin: {
+        description: 'Unique code for this player in this specific game session',
+      },
     },
     {
       name: 'role',

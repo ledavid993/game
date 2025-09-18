@@ -1,39 +1,24 @@
-'use client'
-
-import { HostDashboard } from '@/app/components/game/HostDashboard'
-import { ThemeToggle } from '@/app/components/game/ThemeToggle'
 import React from 'react'
+import { requireAuth } from '@/lib/auth'
+import { getSerializedGameState } from '@/lib/game/payloadGameService'
+import { HostDashboardWrapper } from '@/app/components/game/HostDashboardWrapper'
 
-import { Toaster } from 'react-hot-toast'
+// Force this page to be dynamic (no caching)
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
-export default function HostPage() {
-  return (
-    <>
-      <HostDashboard />
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'rgba(0, 0, 0, 0.8)',
-            color: '#fff',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            backdropFilter: 'blur(10px)',
-          },
-          success: {
-            iconTheme: {
-              primary: '#10b981',
-              secondary: '#fff',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: '#ef4444',
-              secondary: '#fff',
-            },
-          },
-        }}
-      />
-    </>
-  )
+export default async function HostPage() {
+  // Require authentication to access this page
+  await requireAuth()
+
+  // Load the active game session
+  let gameState = null
+  try {
+    gameState = await getSerializedGameState({ gameCode: 'GAME_MAIN' })
+  } catch (error) {
+    // No active game session exists yet, that's okay
+    console.log('No active game session found:', error)
+  }
+
+  return <HostDashboardWrapper initialGameState={gameState} />
 }

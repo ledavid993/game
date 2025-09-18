@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 
 import type {
@@ -67,16 +67,16 @@ export function useSocket() {
     }
   }, [])
 
-  const emit = (event: keyof SocketEvents, payload?: unknown) => {
+  const emit = useCallback((event: keyof SocketEvents, payload?: unknown) => {
     if (!socketRef.current) return
     socketRef.current.emit(event, payload)
-  }
+  }, [])
 
-  const joinGame = (playerId: string) => emit('join-game', playerId)
-  const joinAsHost = () => emit('host-join')
-  const killPlayer = (murderer: string, victim: string) =>
-    emit('kill-attempt', { murderer, victim })
-  const requestGameState = () => emit('request-game-state')
+  const joinGame = useCallback((playerId: string) => emit('join-game', playerId), [emit])
+  const joinAsHost = useCallback(() => emit('host-join'), [emit])
+  const killPlayer = useCallback((murderer: string, victim: string) =>
+    emit('kill-attempt', { murderer, victim }), [emit])
+  const requestGameState = useCallback(() => emit('request-game-state'), [emit])
 
   const registerListener = <Payload>(
     event: keyof SocketEvents,
@@ -93,16 +93,16 @@ export function useSocket() {
     }
   }
 
-  const onPlayerKilled = (callback: (killEvent: KillEvent) => void) =>
-    registerListener('player-killed', callback)
-  const onPlayerJoined = (callback: (player: Player) => void) =>
-    registerListener('player-joined', callback)
-  const onGameStarted = (callback: (state: SerializedGameState) => void) =>
-    registerListener('game-started', callback)
-  const onGameEnded = (callback: (winner: 'murderers' | 'civilians') => void) =>
-    registerListener('game-ended', callback)
-  const onKillAttemptResult = (callback: (result: KillAttemptResult) => void) =>
-    registerListener('kill-attempt-result', callback)
+  const onPlayerKilled = useCallback((callback: (killEvent: KillEvent) => void) =>
+    registerListener('player-killed', callback), [])
+  const onPlayerJoined = useCallback((callback: (player: Player) => void) =>
+    registerListener('player-joined', callback), [])
+  const onGameStarted = useCallback((callback: (state: SerializedGameState) => void) =>
+    registerListener('game-started', callback), [])
+  const onGameEnded = useCallback((callback: (winner: 'murderers' | 'civilians') => void) =>
+    registerListener('game-ended', callback), [])
+  const onKillAttemptResult = useCallback((callback: (result: KillAttemptResult) => void) =>
+    registerListener('kill-attempt-result', callback), [])
 
   return {
     isConnected,
