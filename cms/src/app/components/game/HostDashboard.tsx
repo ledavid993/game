@@ -83,6 +83,11 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
   const [appOrigin, setAppOrigin] = useState('')
   const [playerLinkSearch, setPlayerLinkSearch] = useState('')
+  const [playerMenuState, setPlayerMenuState] = useState<{
+    player: Player
+    position: { top: number; left: number }
+  } | null>(null)
+  const [isPlayerActionPending, setIsPlayerActionPending] = useState(false)
   const [gameCode, setGameCode] = useState<string | null>(null)
   const [currentState, setCurrentState] = useState<SerializedGameState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -433,6 +438,130 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     }
   }
 
+  const handleActivePlayerClick = useCallback((player: Player, event: React.MouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    const scrollY = window.scrollY || document.documentElement.scrollTop
+    const scrollX = window.scrollX || document.documentElement.scrollLeft
+    const menuWidth = 240
+    const menuHeight = 180
+
+    let left = rect.left + scrollX
+    let top = rect.bottom + scrollY + 8
+
+    if (left + menuWidth > scrollX + window.innerWidth) {
+      left = scrollX + window.innerWidth - menuWidth - 16
+    }
+
+    if (top + menuHeight > scrollY + window.innerHeight) {
+      top = rect.top + scrollY - menuHeight - 16
+    }
+
+    setPlayerMenuState({ player, position: { top: Math.max(top, scrollY + 16), left: Math.max(left, scrollX + 16) } })
+  }, [])
+
+  useEffect(() => {
+    if (!playerMenuState) return
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setPlayerMenuState(null)
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [playerMenuState])
+
+  const recalcStats = useCallback(
+    (playersList: SerializedGameState['players'], prevStats: SerializedGameState['stats']) => {
+      const alivePlayers = playersList.filter((player) => player.isAlive).length
+      const deadPlayers = playersList.length - alivePlayers
+      const murdererCount = playersList.filter((player) => player.role === 'murderer').length
+      const civilianCount = playersList.filter((player) => player.role === 'civilian').length
+
+      return {
+        ...prevStats,
+        totalPlayers: playersList.length,
+        alivePlayers,
+        deadPlayers,
+        murderers: murdererCount,
+        civilians: civilianCount,
+      }
+    },
+    [],
+  )
+
+  const runPlayerAdminAction = useCallback(
+    async (player: Player, action: 'change-role' | 'remove' | 'kill', role?: 'murderer' | 'civilian') => {
+      setIsPlayerActionPending(true)
+      try {
+        const response = await fetch('/api/v1/game/player-admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            playerCode: player.id,
+            action,
+            role,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok || !data.success) {
+          throw new Error(data.error || 'Action failed')
+        }
+
+        setCurrentState((prev) => {
+          if (!prev) return prev
+
+          let updatedPlayers = prev.players
+
+          if (action === 'remove') {
+            updatedPlayers = prev.players.filter((p) => p.id !== player.id)
+          } else if (action === 'kill') {
+            updatedPlayers = prev.players.map((p) =>
+              p.id === player.id
+                ? { ...p, isAlive: false }
+                : p,
+            )
+          } else if (action === 'change-role' && role) {
+            updatedPlayers = prev.players.map((p) =>
+              p.id === player.id
+                ? { ...p, role }
+                : p,
+            )
+          }
+
+          return {
+            ...prev,
+            players: updatedPlayers,
+            stats: recalcStats(updatedPlayers as SerializedGameState['players'], prev.stats),
+          }
+        })
+
+        if (action === 'remove') {
+          setAssignedPlayers((prev) => prev.filter((p) => p.id !== player.id))
+        }
+
+        if (action === 'change-role' && role) {
+          toast.success(`${player.name} role set to ${role}`)
+        } else if (action === 'remove') {
+          toast.success(`${player.name} removed from the game`)
+        } else if (action === 'kill') {
+          toast.success(`${player.name} marked as eliminated`)
+        }
+
+        setPlayerMenuState(null)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Action failed'
+        toast.error(message)
+      } finally {
+        setIsPlayerActionPending(false)
+      }
+    },
+    [recalcStats, setAssignedPlayers],
+  )
+
   // Show loading screen while fetching data
   if (isLoading) {
     return <LoadingScreen message={loadingMessage} />
@@ -723,6 +852,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                 <PlayerGrid
                   players={activeState.players as SerializedGameState['players']}
                   showRoles={true}
+                  onPlayerClick={handleActivePlayerClick}
                 />
               </div>
             </motion.section>
@@ -798,6 +928,80 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                 )}
               </div>
             </motion.section>
+          )}
+
+          {playerMenuState && (
+            <div
+              className="fixed inset-0 z-50 bg-black/20 backdrop-blur-[1px]"
+              onClick={() => {
+                if (!isPlayerActionPending) {
+                  setPlayerMenuState(null)
+                }
+              }}
+            >
+              <div
+                className="absolute w-[240px] rounded-xl border border-white/10 bg-[#10121a]/95 shadow-2xl"
+                style={{
+                  top: playerMenuState.position.top,
+                  left: playerMenuState.position.left,
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="px-4 py-3 border-b border-white/10">
+                  <p className="font-manor text-sm uppercase tracking-[0.28em] text-manor-candle">
+                    {playerMenuState.player.name}
+                  </p>
+                  <p className="text-xs text-manor-parchment/60 mt-1">
+                    {playerMenuState.player.id}
+                  </p>
+                </div>
+                <div className="py-2">
+                  {playerMenuState.player.role !== 'murderer' && (
+                    <button
+                      disabled={isPlayerActionPending}
+                      onClick={() => runPlayerAdminAction(playerMenuState.player, 'change-role', 'murderer')}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 text-manor-candle disabled:opacity-50"
+                    >
+                      Set as Murderer
+                    </button>
+                  )}
+                  {playerMenuState.player.role !== 'civilian' && (
+                    <button
+                      disabled={isPlayerActionPending}
+                      onClick={() => runPlayerAdminAction(playerMenuState.player, 'change-role', 'civilian')}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 text-manor-candle disabled:opacity-50"
+                    >
+                      Set as Civilian
+                    </button>
+                  )}
+                  {playerMenuState.player.isAlive && (
+                    <button
+                      disabled={isPlayerActionPending}
+                      onClick={() => runPlayerAdminAction(playerMenuState.player, 'kill')}
+                      className="w-full px-4 py-2 text-left text-sm hover:bg-red-900/30 text-red-300 disabled:opacity-50"
+                    >
+                      Mark as Dead
+                    </button>
+                  )}
+                  <button
+                    disabled={isPlayerActionPending}
+                    onClick={() => runPlayerAdminAction(playerMenuState.player, 'remove')}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-red-900/30 text-red-400 disabled:opacity-50"
+                  >
+                    Remove from Game
+                  </button>
+                </div>
+                <div className="border-t border-white/10 px-4 py-2 text-right">
+                  <button
+                    type="button"
+                    onClick={() => !isPlayerActionPending && setPlayerMenuState(null)}
+                    className="text-xs uppercase tracking-[0.25em] text-manor-parchment/60 hover:text-manor-candle"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       </div>

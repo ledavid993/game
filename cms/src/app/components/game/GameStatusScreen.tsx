@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { useSocket } from './useSocket'
 import { PlayerStatusGrid } from './PlayerStatusGrid'
@@ -17,6 +17,7 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
   const [currentState, setCurrentState] = useState<SerializedGameState>(initialGameState)
   const [playerFilter, setPlayerFilter] = useState<'all' | 'alive' | 'dead'>('all')
   const [searchTerm, setSearchTerm] = useState('')
+  const stateFingerprintRef = useRef<string>('')
 
   useEffect(() => {
     if (gameState) {
@@ -25,6 +26,16 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
   }, [gameState])
 
   const activeState = currentState
+  useEffect(() => {
+    const fingerprint = JSON.stringify({
+      id: currentState.id,
+      isActive: currentState.isActive,
+      stats: currentState.stats,
+      players: currentState.players.map((player) => ({ id: player.id, isAlive: player.isAlive, role: player.role })),
+      killEvents: currentState.killEvents?.map((event) => event.id) ?? [],
+    })
+    stateFingerprintRef.current = fingerprint
+  }, [currentState])
   const aliveCount = activeState.stats.alivePlayers
   const deadCount = activeState.stats.deadPlayers
   const totalPlayers = activeState.stats.totalPlayers
@@ -43,6 +54,47 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
       )
     })
   }, [activeState.players, playerFilter, searchTerm])
+
+  useEffect(() => {
+    let cancelled = false
+    let timeoutId: ReturnType<typeof window.setTimeout>
+
+    const poll = async () => {
+      try {
+        const response = await fetch(`/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`, { cache: 'no-store' })
+        if (!response.ok) return
+        const data = await response.json()
+        if (data.success && data.gameState) {
+          const nextState = data.gameState as SerializedGameState
+          const nextFingerprint = JSON.stringify({
+            id: nextState.id,
+            isActive: nextState.isActive,
+            stats: nextState.stats,
+            players: nextState.players.map((player) => ({ id: player.id, isAlive: player.isAlive, role: player.role })),
+            killEvents: nextState.killEvents?.map((event) => event.id) ?? [],
+          })
+          if (nextFingerprint !== stateFingerprintRef.current && !cancelled) {
+            setCurrentState(nextState)
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to poll game status', error)
+      } finally {
+        if (!cancelled) {
+          timeoutId = window.setTimeout(poll, 5000)
+        }
+      }
+    }
+
+    timeoutId = window.setTimeout(poll, 5000)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeoutId)
+    }
+  }, [])
+
+  const playerDensity = filteredPlayers.length >= 60 ? "ultra" : filteredPlayers.length >= 30 ? "dense" : "normal"
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(177,54,30,0.2),_transparent_55%),linear-gradient(140deg,_rgba(9,11,16,0.96)_0%,_rgba(17,22,34,0.92)_55%,_rgba(4,5,9,0.98)_100%)]">
@@ -82,7 +134,7 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
               {activeState.stats.gameEnded ? '🏁 Performance Concluded' : activeState.isActive ? '🎭 Performance In Progress' : '🛋️ Lobby Gathering'}
             </span>
             <span className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5">
-              ⏱ Updated {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              ⏱ Updated {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
           </div>
         </motion.header>
@@ -185,6 +237,7 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
                           ? 'No recorded casualties.'
                           : 'No guests in the manor.'
                   }
+                  density={playerDensity}
                 />
               </div>
             </motion.section>
