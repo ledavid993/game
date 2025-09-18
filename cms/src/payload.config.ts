@@ -12,6 +12,8 @@ import { Media } from './collections/Media'
 import { Games } from './collections/Games'
 import { GamePlayers } from './collections/GamePlayers'
 import { PlayerRegistry } from './collections/PlayerRegistry'
+import { Votes } from './collections/Votes'
+import { PlayerVotes } from './collections/PlayerVotes'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -23,7 +25,7 @@ export default buildConfig({
       baseDir: path.resolve(dirname),
     },
   },
-  collections: [Users, Media, Games, GamePlayers, PlayerRegistry],
+  collections: [Users, Media, Games, GamePlayers, PlayerRegistry, Votes, PlayerVotes],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

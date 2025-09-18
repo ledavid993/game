@@ -6,6 +6,7 @@ import { useSocket } from './useSocket'
 import { PlayerStatusGrid } from './PlayerStatusGrid'
 import { GameStats } from './GameStats'
 import { LiveFeed } from './LiveFeed'
+import { VotingResults } from './VotingResults'
 import type { SerializedGameState } from '@/app/lib/game/types'
 
 interface GameStatusScreenProps {
@@ -110,24 +111,19 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
         <div className="h-full w-full bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')]" />
       </div>
 
-      <div className="absolute top-5 right-6 z-30">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className={`
-            flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold uppercase tracking-[0.25em]
-            border ${isConnected ? 'border-green-500/30 bg-green-900/40 text-green-300' : 'border-red-500/30 bg-red-900/40 text-red-300'}
-          `}
-        >
-          <span className="text-lg">{isConnected ? '🟢' : '🔴'}</span>
-          {isConnected ? 'Live Connection' : 'Offline'}
-        </motion.div>
-      </div>
-
       <div className="relative z-20 h-full flex flex-col">
         <div className="flex-1 overflow-hidden">
           <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 px-6 py-6 overflow-hidden">
             <div className="flex flex-col gap-6 overflow-hidden">
+              <motion.section
+                initial={{ opacity: 0, x: -25 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.05 }}
+                className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-lg shadow-xl"
+              >
+                <VotingResults gameId={activeState.id} />
+              </motion.section>
+
               <motion.section
                 initial={{ opacity: 0, x: -25 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -221,15 +217,6 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
             </motion.section>
           </div>
         </div>
-
-        <motion.footer
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="flex-shrink-0 px-6 py-5 border-t border-white/10 text-center text-xs uppercase tracking-[0.35em] text-manor-parchment/50 backdrop-blur"
-        >
-          Whispered status relayed in real time.
-        </motion.footer>
       </div>
     </div>
   )

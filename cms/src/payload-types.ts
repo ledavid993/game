@@ -72,6 +72,8 @@ export interface Config {
     games: Game;
     'game-players': GamePlayer;
     'player-registry': PlayerRegistry;
+    votes: Vote;
+    'player-votes': PlayerVote;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -83,6 +85,8 @@ export interface Config {
     games: GamesSelect<false> | GamesSelect<true>;
     'game-players': GamePlayersSelect<false> | GamePlayersSelect<true>;
     'player-registry': PlayerRegistrySelect<false> | PlayerRegistrySelect<true>;
+    votes: VotesSelect<false> | VotesSelect<true>;
+    'player-votes': PlayerVotesSelect<false> | PlayerVotesSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -264,6 +268,45 @@ export interface PlayerRegistry {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "votes".
+ */
+export interface Vote {
+  id: number;
+  /**
+   * Derived automatically from the targeted game session player
+   */
+  game: number | Game;
+  /**
+   * Player in this game session receiving the vote
+   */
+  target: number | GamePlayer;
+  count?: number | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "player-votes".
+ */
+export interface PlayerVote {
+  id: number;
+  /**
+   * Derived automatically from the voter game session player
+   */
+  game: number | Game;
+  /**
+   * Player who cast the vote
+   */
+  voter: number | GamePlayer;
+  /**
+   * Player receiving the vote
+   */
+  target: number | GamePlayer;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -288,6 +331,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'player-registry';
         value: number | PlayerRegistry;
+      } | null)
+    | ({
+        relationTo: 'votes';
+        value: number | Vote;
+      } | null)
+    | ({
+        relationTo: 'player-votes';
+        value: number | PlayerVote;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -435,6 +486,28 @@ export interface PlayerRegistrySelect<T extends boolean = true> {
   email?: T;
   isActive?: T;
   gamesPlayed?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "votes_select".
+ */
+export interface VotesSelect<T extends boolean = true> {
+  game?: T;
+  target?: T;
+  count?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "player-votes_select".
+ */
+export interface PlayerVotesSelect<T extends boolean = true> {
+  game?: T;
+  voter?: T;
+  target?: T;
   updatedAt?: T;
   createdAt?: T;
 }
