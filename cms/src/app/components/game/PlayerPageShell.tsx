@@ -22,7 +22,7 @@ export function PlayerPageShell({ playerId }: PlayerPageShellProps) {
       </div>
 
       <Toaster
-        position="top-center"
+        position="bottom-right"
         toastOptions={{
           duration: 4000,
           style: {

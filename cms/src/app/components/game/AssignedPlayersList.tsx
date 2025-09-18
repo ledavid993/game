@@ -21,6 +21,9 @@ export function AssignedPlayersList({
   disabled = false
 }: AssignedPlayersListProps) {
   const [searchTerm, setSearchTerm] = useState('')
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
+  const [isAssigningAll, setIsAssigningAll] = useState(false)
+  const [isRemovingAll, setIsRemovingAll] = useState(false)
 
   // Filter available players (not already assigned)
   const availablePlayers = useMemo(() => {
@@ -48,6 +51,9 @@ export function AssignedPlayersList({
       return
     }
 
+    // Set loading state for this specific player
+    setLoadingStates(prev => ({ ...prev, [playerId]: true }))
+
     try {
       const response = await fetch(`/api/v1/game/assign-players?_t=${Date.now()}`, {
         method: 'POST',
@@ -62,8 +68,13 @@ export function AssignedPlayersList({
       const data = await response.json()
 
       if (data.success) {
-        onAssignedPlayersChange([...assignedPlayers, player])
-        toast.success(`${player.name} assigned to game`)
+        if (data.assigned === 0) {
+          toast(`${player.name} is already assigned`, { icon: 'ℹ️' })
+        } else {
+          // Smart update: only add if actually assigned
+          onAssignedPlayersChange(prevPlayers => [...prevPlayers, player])
+          toast.success(`${player.name} assigned to game`)
+        }
       } else {
         throw new Error(data.error || 'Failed to assign player')
       }
@@ -71,12 +82,22 @@ export function AssignedPlayersList({
       console.error('Error assigning player:', error)
       const message = error instanceof Error ? error.message : 'Failed to assign player'
       toast.error(message)
+    } finally {
+      // Clear loading state for this player
+      setLoadingStates(prev => {
+        const newState = { ...prev }
+        delete newState[playerId]
+        return newState
+      })
     }
   }, [registryPlayers, assignedPlayers, maxPlayers, onAssignedPlayersChange])
 
   const removePlayer = useCallback(async (playerId: string) => {
     const player = assignedPlayers.find(p => p.id === playerId)
     if (!player) return
+
+    // Set loading state for this specific player
+    setLoadingStates(prev => ({ ...prev, [playerId]: true }))
 
     try {
       const response = await fetch(`/api/v1/game/assign-players?playerCode=${encodeURIComponent(playerId)}&_t=${Date.now()}`, {
@@ -90,7 +111,8 @@ export function AssignedPlayersList({
       const data = await response.json()
 
       if (data.success) {
-        onAssignedPlayersChange(assignedPlayers.filter(p => p.id !== playerId))
+        // Smart update: filter out only the removed player
+        onAssignedPlayersChange(prevPlayers => prevPlayers.filter(p => p.id !== playerId))
         toast.success(`${player.name} removed from game`)
       } else {
         throw new Error(data.error || 'Failed to remove player')
@@ -99,6 +121,13 @@ export function AssignedPlayersList({
       console.error('Error removing player:', error)
       const message = error instanceof Error ? error.message : 'Failed to remove player'
       toast.error(message)
+    } finally {
+      // Clear loading state for this player
+      setLoadingStates(prev => {
+        const newState = { ...prev }
+        delete newState[playerId]
+        return newState
+      })
     }
   }, [assignedPlayers, onAssignedPlayersChange])
 
@@ -110,6 +139,8 @@ export function AssignedPlayersList({
 
     const playersToAssign = availablePlayers.slice(0, maxPlayers - assignedPlayers.length)
     const playerCodes = playersToAssign.map(p => p.id)
+
+    setIsAssigningAll(true)
 
     try {
       const response = await fetch(`/api/v1/game/assign-players?_t=${Date.now()}`, {
@@ -125,8 +156,14 @@ export function AssignedPlayersList({
       const data = await response.json()
 
       if (data.success) {
-        onAssignedPlayersChange([...assignedPlayers, ...playersToAssign])
-        toast.success(`${data.assigned} players assigned to game`)
+        if (data.assigned === 0) {
+          toast(`All players already assigned`, { icon: 'ℹ️' })
+        } else {
+          // Smart update: only add the players that were actually assigned
+          const actuallyAssigned = playersToAssign.slice(0, data.assigned)
+          onAssignedPlayersChange(prevPlayers => [...prevPlayers, ...actuallyAssigned])
+          toast.success(`${data.assigned} players assigned to game`)
+        }
       } else {
         throw new Error(data.error || 'Failed to assign players')
       }
@@ -134,11 +171,15 @@ export function AssignedPlayersList({
       console.error('Error assigning players:', error)
       const message = error instanceof Error ? error.message : 'Failed to assign players'
       toast.error(message)
+    } finally {
+      setIsAssigningAll(false)
     }
   }, [availablePlayers, assignedPlayers, maxPlayers, onAssignedPlayersChange])
 
   const removeAllPlayers = useCallback(async () => {
     if (assignedPlayers.length === 0) return
+
+    setIsRemovingAll(true)
 
     try {
       // Remove all assigned players
@@ -159,6 +200,8 @@ export function AssignedPlayersList({
     } catch (error) {
       console.error('Error removing all players:', error)
       toast.error('Failed to remove all players')
+    } finally {
+      setIsRemovingAll(false)
     }
   }, [assignedPlayers, onAssignedPlayersChange])
 
@@ -181,17 +224,19 @@ export function AssignedPlayersList({
             {availablePlayers.length > 0 && (
               <button
                 onClick={assignAllAvailable}
-                className="px-3 py-1 text-xs rounded border border-green-500/30 text-green-400 hover:text-green-300 hover:bg-green-900/20 transition-colors"
+                disabled={isAssigningAll || disabled}
+                className="px-3 py-1 text-xs rounded border border-green-500/30 text-green-400 hover:text-green-300 hover:bg-green-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Add All ({availablePlayers.length})
+                {isAssigningAll ? 'Adding...' : `Add All (${availablePlayers.length})`}
               </button>
             )}
             {assignedPlayers.length > 0 && (
               <button
                 onClick={removeAllPlayers}
-                className="px-3 py-1 text-xs rounded border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors"
+                disabled={isRemovingAll || disabled}
+                className="px-3 py-1 text-xs rounded border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Remove All
+                {isRemovingAll ? 'Removing...' : 'Remove All'}
               </button>
             )}
           </div>
@@ -228,9 +273,10 @@ export function AssignedPlayersList({
               <button
                 key={player.id}
                 onClick={() => assignPlayer(player.id)}
-                className="px-2 py-1 text-xs rounded border border-white/20 text-manor-parchment/80 hover:text-manor-candle hover:bg-white/5 transition-colors"
+                disabled={loadingStates[player.id] || disabled}
+                className="px-2 py-1 text-xs rounded border border-white/20 text-manor-parchment/80 hover:text-manor-candle hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {player.name}
+                {loadingStates[player.id] ? '...' : player.name}
               </button>
             ))}
             {availablePlayers.length > 10 && (
@@ -264,9 +310,10 @@ export function AssignedPlayersList({
                 {!disabled && (
                   <button
                     onClick={() => removePlayer(player.id)}
-                    className="px-2 py-1 text-xs rounded border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors"
+                    disabled={loadingStates[player.id]}
+                    className="px-2 py-1 text-xs rounded border border-red-500/30 text-red-400 hover:text-red-300 hover:bg-red-900/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Remove
+                    {loadingStates[player.id] ? 'Removing...' : 'Remove'}
                   </button>
                 )}
               </motion.div>

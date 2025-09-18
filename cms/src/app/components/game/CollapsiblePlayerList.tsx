@@ -17,119 +17,146 @@ export function CollapsiblePlayerList({
   players,
   onPlayersChange,
   maxPlayers = 100,
-  disabled = false
+  disabled = false,
 }: CollapsiblePlayerListProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const [newPlayerName, setNewPlayerName] = useState('')
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
+  const [isAdding, setIsAdding] = useState(false)
 
   // Get all existing usernames for uniqueness check
-  const existingUsernames = players.map(p => p.username)
+  const existingUsernames = players.map((p) => p.username)
 
   // Filter players based on search term
   const filteredPlayers = useMemo(() => {
     if (!searchTerm.trim()) return players
 
     const term = searchTerm.toLowerCase()
-    return players.filter(player =>
-      player.name.toLowerCase().includes(term) ||
-      player.username.toLowerCase().includes(term)
+    return players.filter(
+      (player) =>
+        player.name.toLowerCase().includes(term) || player.username.toLowerCase().includes(term),
     )
   }, [players, searchTerm])
 
-  const addPlayer = useCallback(async (playerData: Omit<PlayerData, 'id' | 'username'>) => {
-    if (!playerData.name.trim()) {
-      toast.error('Player name is required')
-      return
-    }
-
-    if (players.length >= maxPlayers) {
-      toast.error(`Maximum ${maxPlayers} players allowed`)
-      return
-    }
-
-    // Check for duplicate names
-    if (players.some(p => p.name.toLowerCase() === playerData.name.toLowerCase())) {
-      toast.error('Player name already exists')
-      return
-    }
-
-    const newPlayer: PlayerData = {
-      id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      username: generateUsername({ excludeList: existingUsernames }),
-      ...playerData
-    }
-
-    try {
-      const response = await fetch(`/api/v1/players?_t=${Date.now()}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
-        },
-        body: JSON.stringify({ player: newPlayer })
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        const savedPlayer: PlayerData = {
-          id: data.player.id,
-          name: data.player.name,
-          username: data.player.username,
-          phone: data.player.phone,
-          email: data.player.email,
-        }
-
-        onPlayersChange([...players, savedPlayer])
-        setNewPlayerName('')
-        toast.success(`${playerData.name} added to guest list`)
-      } else {
-        throw new Error(data.error || 'Failed to add player')
+  const addPlayer = useCallback(
+    async (playerData: Omit<PlayerData, 'id' | 'username'>) => {
+      if (!playerData.name.trim()) {
+        toast.error('Player name is required')
+        return
       }
-    } catch (error) {
-      console.error('Error adding player:', error)
-      const message = error instanceof Error ? error.message : 'Failed to add player'
-      toast.error(message)
-    }
-  }, [players, maxPlayers, existingUsernames, onPlayersChange])
 
-  const updatePlayer = useCallback((updatedPlayer: PlayerData) => {
-    onPlayersChange(
-      players.map(player =>
-        player.id === updatedPlayer.id ? updatedPlayer : player
+      if (players.length >= maxPlayers) {
+        toast.error(`Maximum ${maxPlayers} players allowed`)
+        return
+      }
+
+      setIsAdding(true)
+
+      // Check for duplicate names
+      if (players.some((p) => p.name.toLowerCase() === playerData.name.toLowerCase())) {
+        toast.error('Player name already exists')
+        return
+      }
+
+      const newPlayer: PlayerData = {
+        id: `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        username: generateUsername({ excludeList: existingUsernames }),
+        ...playerData,
+      }
+
+      try {
+        const response = await fetch(`/api/v1/players?_t=${Date.now()}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+          body: JSON.stringify({ player: newPlayer }),
+        })
+
+        const data = await response.json()
+
+        if (data.success) {
+          const savedPlayer: PlayerData = {
+            id: data.player.id,
+            name: data.player.name,
+            username: data.player.username,
+            phone: data.player.phone,
+            email: data.player.email,
+          }
+
+          // Smart update: append the new player
+          onPlayersChange((prevPlayers) => [...prevPlayers, savedPlayer])
+          setNewPlayerName('')
+          toast.success(`${playerData.name} added to guest list`)
+        } else {
+          throw new Error(data.error || 'Failed to add player')
+        }
+      } catch (error) {
+        console.error('Error adding player:', error)
+        const message = error instanceof Error ? error.message : 'Failed to add player'
+        toast.error(message)
+      } finally {
+        setIsAdding(false)
+      }
+    },
+    [players, maxPlayers, existingUsernames, onPlayersChange],
+  )
+
+  const updatePlayer = useCallback(
+    (updatedPlayer: PlayerData) => {
+      // Smart update: update only the specific player
+      onPlayersChange((prevPlayers) =>
+        prevPlayers.map((player) => (player.id === updatedPlayer.id ? updatedPlayer : player)),
       )
-    )
-  }, [players, onPlayersChange])
+    },
+    [onPlayersChange],
+  )
 
-  const removePlayer = useCallback(async (playerId: string) => {
-    const player = players.find(p => p.id === playerId)
-    if (!player) return
+  const removePlayer = useCallback(
+    async (playerId: string) => {
+      const player = players.find((p) => p.id === playerId)
+      if (!player) return
 
-    try {
-      const response = await fetch(`/api/v1/players?playerCode=${encodeURIComponent(playerId)}&_t=${Date.now()}`, {
-        method: 'DELETE',
-        headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache'
+      setLoadingStates((prev) => ({ ...prev, [playerId]: true }))
+
+      try {
+        const response = await fetch(
+          `/api/v1/players?playerCode=${encodeURIComponent(playerId)}&_t=${Date.now()}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+          },
+        )
+
+        const data = await response.json()
+
+        if (data.success) {
+          // Smart update: filter out only the removed player
+          onPlayersChange((prevPlayers) => prevPlayers.filter((p) => p.id !== playerId))
+          toast.success(`${player.name} removed from guest list`)
+        } else {
+          throw new Error(data.error || 'Failed to remove player')
         }
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        onPlayersChange(players.filter(p => p.id !== playerId))
-        toast.success(`${player.name} removed from guest list`)
-      } else {
-        throw new Error(data.error || 'Failed to remove player')
+      } catch (error) {
+        console.error('Error removing player:', error)
+        const message = error instanceof Error ? error.message : 'Failed to remove player'
+        toast.error(message)
+      } finally {
+        setLoadingStates((prev) => {
+          const newState = { ...prev }
+          delete newState[playerId]
+          return newState
+        })
       }
-    } catch (error) {
-      console.error('Error removing player:', error)
-      const message = error instanceof Error ? error.message : 'Failed to remove player'
-      toast.error(message)
-    }
-  }, [players, onPlayersChange])
+    },
+    [players, onPlayersChange],
+  )
 
   const handleAddPlayer = useCallback(() => {
     if (newPlayerName.trim()) {
@@ -137,11 +164,14 @@ export function CollapsiblePlayerList({
     }
   }, [newPlayerName, addPlayer])
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleAddPlayer()
-    }
-  }, [handleAddPlayer])
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter') {
+        handleAddPlayer()
+      }
+    },
+    [handleAddPlayer],
+  )
 
   const clearAllPlayers = useCallback(async () => {
     // For now, just clear the UI - could add batch delete API later
@@ -152,7 +182,7 @@ export function CollapsiblePlayerList({
   const canAddMore = players.length < maxPlayers
 
   return (
-    <div className="manor-card space-y-4">
+    <div className="manor-card space-y-4 h-full">
       {/* Header with collapse toggle */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
@@ -178,9 +208,9 @@ export function CollapsiblePlayerList({
 
       {/* Quick summary when collapsed */}
       {!isExpanded && players.length > 0 && (
-        <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-manor-parchment/80">
+        <div className="text-[clamp(0.75rem,1.5vw,0.875rem)] text-manor-parchment/80 ">
           <div className="flex flex-wrap gap-2">
-            {players.slice(0, 3).map(player => (
+            {players.slice(0, 3).map((player) => (
               <span key={player.id} className="px-2 py-1 bg-manor-shadow/40 rounded text-xs">
                 {player.name}
               </span>
@@ -274,7 +304,9 @@ export function CollapsiblePlayerList({
               <div className="text-center py-8">
                 <div className="text-4xl mb-2">👻</div>
                 <p className="text-manor-parchment/70">No guests in the manor yet</p>
-                <p className="text-manor-parchment/50 text-sm mt-1">Add players to begin the mystery</p>
+                <p className="text-manor-parchment/50 text-sm mt-1">
+                  Add players to begin the mystery
+                </p>
               </div>
             )}
 

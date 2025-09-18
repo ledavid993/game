@@ -140,6 +140,18 @@ export function GameSettings({
                   </button>
                 )}
               </div>
+
+              {/* Validation message for murderer count vs assigned players */}
+              {playerCount > 0 && settings.murdererCount > playerCount && (
+                <div className="text-xs text-red-400 bg-red-900/20 border border-red-500/30 rounded px-2 py-1">
+                  ⚠️ Need {settings.murdererCount - playerCount} more players for {settings.murdererCount} murderers
+                </div>
+              )}
+              {playerCount > 0 && settings.murdererCount <= playerCount && (
+                <div className="text-xs text-green-400 bg-green-900/20 border border-green-500/30 rounded px-2 py-1">
+                  ✓ Ready to assign {settings.murdererCount} murderer{settings.murdererCount > 1 ? 's' : ''} to {playerCount} players
+                </div>
+              )}
             </div>
 
             {/* Cooldown Timer */}

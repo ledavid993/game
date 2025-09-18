@@ -78,7 +78,12 @@ export async function POST(request: NextRequest) {
     );
 
     if (playersToAssign.length === 0) {
-      return NextResponse.json({ success: false, error: 'All selected players are already in the game' }, { status: 400 });
+      return NextResponse.json({
+        success: true,
+        assigned: 0,
+        skipped: playerCodes.length,
+        message: 'All selected players are already assigned to the game'
+      });
     }
 
     // Create game-player assignments

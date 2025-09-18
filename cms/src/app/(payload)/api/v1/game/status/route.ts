@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPayloadClient } from '@/lib/game/payloadGameService';
-import type { Game } from '@/payload-types';
+import type { Game, GamePlayer, PlayerRegistry } from '@/payload-types';
 
 const SINGLE_GAME_CODE = 'GAME_MAIN';
 
@@ -31,11 +31,50 @@ export async function PATCH(request: NextRequest) {
 
     // Update status if provided
     if (status) {
-      updateData.status = status;
-      // If changing to active, set startedAt
+      // If changing to active, validate and assign roles
       if (status === 'active' && game.status !== 'active') {
+        // Get all assigned players for this game
+        const gamePlayersResult = (await payload.find({
+          collection: 'game-players',
+          where: { game: { equals: game.id } },
+          depth: 1,
+          limit: 1000,
+        })) as unknown as { docs: GamePlayer[] };
+
+        const assignedPlayers = gamePlayersResult.docs;
+
+        if (assignedPlayers.length === 0) {
+          return NextResponse.json({ success: false, error: 'Cannot activate game: No players assigned' }, { status: 400 });
+        }
+
+        const murdererCount = game.settings?.murdererCount || 1;
+
+        if (murdererCount > assignedPlayers.length) {
+          return NextResponse.json({
+            success: false,
+            error: `Cannot activate game: Need ${murdererCount} murderers but only ${assignedPlayers.length} players assigned`
+          }, { status: 400 });
+        }
+
+        // Assign roles to players
+        const shuffledPlayers = [...assignedPlayers].sort(() => Math.random() - 0.5);
+
+        // Update each player with their assigned role
+        for (let i = 0; i < shuffledPlayers.length; i++) {
+          const player = shuffledPlayers[i];
+          const role = i < murdererCount ? 'murderer' : 'civilian';
+
+          await payload.update({
+            collection: 'game-players',
+            id: String(player.id),
+            data: { role }
+          });
+        }
+
         updateData.startedAt = new Date().toISOString();
       }
+
+      updateData.status = status;
     }
 
     // Update settings if provided
