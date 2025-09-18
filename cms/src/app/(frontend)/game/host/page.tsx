@@ -1,0 +1,43 @@
+'use client';
+
+import React from 'react';
+import { HostDashboard } from '@/components/game/HostDashboard';
+import { ThemeToggle } from '@/components/game/ThemeToggle';
+import { Toaster } from 'react-hot-toast';
+
+export default function HostPage() {
+  return (
+    <>
+      <div className="fixed top-4 right-4 z-50">
+        <ThemeToggle />
+      </div>
+
+      <HostDashboard />
+
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: 'rgba(0, 0, 0, 0.8)',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            backdropFilter: 'blur(10px)',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
+    </>
+  );
+}
