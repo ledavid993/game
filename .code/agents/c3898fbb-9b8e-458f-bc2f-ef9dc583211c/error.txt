@@ -1,0 +1,2 @@
+Failed to setup worktree: Failed to create worktree: Preparing worktree (new branch 'code-code-implement-christmas-party')
+fatal: not a valid object name: 'HEAD'
