@@ -85,10 +85,100 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Check if player has reached 70% of alive players (elimination threshold)
+    const alivePlayersResult = (await payload.find({
+      collection: 'game-players',
+      where: {
+        and: [
+          { game: { equals: game.id } },
+          { isAlive: { equals: true } }
+        ]
+      },
+      depth: 0,
+      limit: 1000,
+    })) as unknown as { docs: GamePlayer[] }
+
+    const aliveCount = alivePlayersResult.docs.length
+    const eliminationThreshold = Math.ceil(aliveCount * 0.7) // 70% threshold
+
+    if (newCount >= eliminationThreshold && aliveCount > 0) {
+      // Get player name for elimination message
+      let playerName = target.displayName || target.playerCode || 'Unknown Player'
+      if (target.player) {
+        try {
+          const registryPlayerId = typeof target.player === 'string' ? target.player : target.player.id
+          const registryPlayer = await payload.findByID({
+            collection: 'player-registry',
+            id: registryPlayerId,
+            depth: 0,
+          })
+          playerName = registryPlayer.displayName || playerName
+        } catch (error) {
+          console.warn('Failed to get registry player name:', error)
+        }
+      }
+
+      // Eliminate the player
+      await payload.update({
+        collection: 'game-players',
+        id: target.id,
+        data: {
+          isAlive: false,
+        },
+      })
+
+      // Clear all votes
+      const allVotesResult = (await payload.find({
+        collection: 'votes',
+        where: { game: { equals: game.id } },
+        depth: 0,
+        limit: 1000,
+      })) as unknown as { docs: Vote[] }
+
+      for (const vote of allVotesResult.docs) {
+        await payload.delete({
+          collection: 'votes',
+          id: vote.id,
+        })
+      }
+
+      const allPlayerVotesResult = (await payload.find({
+        collection: 'player-votes',
+        where: { game: { equals: game.id } },
+        depth: 0,
+        limit: 1000,
+      })) as unknown as { docs: any[] }
+
+      for (const playerVote of allPlayerVotesResult.docs) {
+        await payload.delete({
+          collection: 'player-votes',
+          id: playerVote.id,
+        })
+      }
+
+      return NextResponse.json({
+        success: true,
+        eliminated: true,
+        message: `${playerName} eliminated by majority vote (${newCount}/${aliveCount} votes = ${Math.round((newCount/aliveCount)*100)}%). All votes cleared.`,
+        eliminatedPlayer: {
+          code: targetCode,
+          name: playerName,
+          percentage: Math.round((newCount/aliveCount)*100),
+        },
+        voteCount: newCount,
+        threshold: eliminationThreshold,
+        aliveCount: aliveCount,
+      })
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Vote added for ${target.displayName || target.playerCode} (Total: ${newCount})`,
+      eliminated: false,
+      message: `Vote added for ${target.displayName || target.playerCode} (${newCount}/${aliveCount} = ${Math.round((newCount/aliveCount)*100)}%)`,
       voteCount: newCount,
+      percentage: aliveCount > 0 ? Math.round((newCount/aliveCount)*100) : 0,
+      threshold: eliminationThreshold,
+      aliveCount: aliveCount,
     })
   } catch (error) {
     console.error('Error incrementing vote:', error)

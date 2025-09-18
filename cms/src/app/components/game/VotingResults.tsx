@@ -11,6 +11,7 @@ interface VoteResult {
 
 interface VotingResultsProps {
   gameId?: string
+  aliveCount?: number
 }
 
 // Optimized player card component
@@ -18,7 +19,8 @@ const PlayerVoteCard = React.memo<{
   vote: VoteResult
   index: number
   isTopVoted: boolean
-}>(({ vote, index, isTopVoted }) => {
+  aliveCount?: number
+}>(({ vote, index, isTopVoted, aliveCount }) => {
   const getRankIcon = () => {
     if (index === 0) return '👑'
     if (index === 1) return '🥈'
@@ -27,6 +29,13 @@ const PlayerVoteCard = React.memo<{
   }
 
   const getBadgeStyle = () => {
+    const percentage = aliveCount && aliveCount > 0 ? (vote.count / aliveCount) * 100 : 0
+
+    // Danger zone (≥70% - elimination threshold)
+    if (percentage >= 70) return 'bg-red-500/30 text-red-200 border-red-400/70 animate-pulse'
+    // Warning zone (≥50%)
+    if (percentage >= 50) return 'bg-orange-500/25 text-orange-300 border-orange-400/60'
+    // Top positions
     if (index === 0) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'
     if (index === 1) return 'bg-gray-400/20 text-gray-300 border-gray-400/50'
     if (index === 2) return 'bg-amber-600/20 text-amber-400 border-amber-600/50'
@@ -43,7 +52,13 @@ const PlayerVoteCard = React.memo<{
       <div
         className={`
         relative rounded-lg border bg-black/30 backdrop-blur-sm p-3 transition-all hover:bg-black/40
-        ${isTopVoted ? 'border-yellow-500/30 shadow-lg shadow-yellow-500/10' : 'border-white/10'}
+        ${(() => {
+          const percentage = aliveCount && aliveCount > 0 ? (vote.count / aliveCount) * 100 : 0
+          if (percentage >= 70) return 'border-red-500/50 shadow-lg shadow-red-500/20 bg-red-900/10'
+          if (percentage >= 50) return 'border-orange-500/40 shadow-md shadow-orange-500/10 bg-orange-900/5'
+          if (isTopVoted) return 'border-yellow-500/30 shadow-lg shadow-yellow-500/10'
+          return 'border-white/10'
+        })()}
       `}
       >
         {/* Vote Count Badge */}
@@ -67,7 +82,10 @@ const PlayerVoteCard = React.memo<{
             {vote.targetName}
           </h3>
           <p className="text-xs text-manor-parchment/80 font-medium">
-            {vote.count} vote{vote.count !== 1 ? 's' : ''}
+            {aliveCount && aliveCount > 0
+              ? `${Math.round((vote.count / aliveCount) * 100)}%`
+              : `${vote.count} vote${vote.count !== 1 ? 's' : ''}`
+            }
           </p>
         </div>
 
@@ -82,7 +100,7 @@ const PlayerVoteCard = React.memo<{
 
 PlayerVoteCard.displayName = 'PlayerVoteCard'
 
-export const VotingResults = React.memo<VotingResultsProps>(({ gameId }) => {
+export const VotingResults = React.memo<VotingResultsProps>(({ gameId, aliveCount }) => {
   const [votes, setVotes] = useState<VoteResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -162,60 +180,36 @@ export const VotingResults = React.memo<VotingResultsProps>(({ gameId }) => {
 
   if (votes.length === 0) {
     return (
-      <>
-        {/* Header Section */}
-        <div className="border-b border-white/10 px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h2 className="font-manor text-[clamp(1.2rem,2.1vw,1.6rem)] uppercase tracking-[0.3em] text-manor-candle">
-              Voting Chamber
-            </h2>
-            <p className="text-sm text-manor-parchment/70 mt-1">
-              No votes cast · Awaiting participation
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="px-3 py-1.5 rounded-full border border-manor-wine/30 bg-manor-wine/10">
-              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-manor-wine">
-                Live Results
-              </span>
-            </div>
-          </div>
+      <div className="flex-1 flex items-center justify-center p-8 text-center text-manor-parchment/60">
+        <div>
+          <div className="text-4xl mb-4">🗳️</div>
+          <p className="font-manor text-sm uppercase tracking-[0.25em] text-manor-parchment/70">
+            No Votes Cast
+          </p>
+          <p className="text-xs mt-2 text-manor-parchment/50">
+            Voting results will appear here once votes are recorded
+          </p>
         </div>
-
-        {/* Empty State */}
-        <div className="flex-1 flex items-center justify-center p-8 text-center text-manor-parchment/60">
-          <div>
-            <div className="text-4xl mb-4">🗳️</div>
-            <p className="font-manor text-sm uppercase tracking-[0.25em] text-manor-parchment/70">
-              No Votes Cast
-            </p>
-            <p className="text-xs mt-2 text-manor-parchment/50">
-              Voting results will appear here once votes are recorded
-            </p>
-          </div>
-        </div>
-      </>
+      </div>
     )
   }
 
   return (
-    <>
-      {/* Voting Results Grid */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="p-6">
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
-            {sortedVotes.map((vote, index) => (
-              <PlayerVoteCard
-                key={vote.targetId}
-                vote={vote}
-                index={index}
-                isTopVoted={index === 0 && vote.count > 0}
-              />
-            ))}
-          </div>
+    <div className="flex-1 overflow-y-auto custom-scrollbar">
+      <div className="p-6">
+        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
+          {sortedVotes.map((vote, index) => (
+            <PlayerVoteCard
+              key={vote.targetId}
+              vote={vote}
+              index={index}
+              isTopVoted={index === 0 && vote.count > 0}
+              aliveCount={aliveCount}
+            />
+          ))}
         </div>
       </div>
-    </>
+    </div>
   )
 })
 

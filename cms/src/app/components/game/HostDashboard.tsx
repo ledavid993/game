@@ -632,7 +632,28 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
           throw new Error(data.error || 'Failed to record vote')
         }
 
-        toast.success(data.message || `Vote added for ${targetPlayer.name}`)
+        if (data.eliminated) {
+          // Player was eliminated
+          toast.success(data.message, { duration: 6000 })
+
+          // Update the current state to reflect the elimination and vote clearing
+          setCurrentState((prev) => {
+            if (!prev) return prev
+
+            const updatedPlayers = prev.players.map((p) =>
+              p.id === targetPlayer.id ? { ...p, isAlive: false } : p
+            )
+
+            return {
+              ...prev,
+              players: updatedPlayers,
+              stats: recalcStats(updatedPlayers as SerializedGameState['players'], prev.stats),
+            }
+          })
+        } else {
+          toast.success(data.message || `Vote added for ${targetPlayer.name}`)
+        }
+
         setPlayerMenuState(null)
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to record vote'

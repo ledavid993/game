@@ -121,7 +121,7 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
               transition={{ duration: 0.5, delay: 0.05 }}
               className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-lg shadow-xl flex flex-col overflow-hidden"
             >
-              <VotingResults gameId={activeState.id} />
+              <VotingResults gameId={activeState.id} aliveCount={aliveCount} />
             </motion.section>
 
             {/* Main Content Grid */}
