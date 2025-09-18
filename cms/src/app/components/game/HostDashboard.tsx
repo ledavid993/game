@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import toast from 'react-hot-toast'
 
@@ -14,6 +14,13 @@ import { LoadingScreen } from './LoadingScreen'
 import { useSocket } from './useSocket'
 import type { PlayerData } from './PlayerCard'
 import type { KillEvent, Player, SerializedGameState, StartGameRequest } from '@/app/lib/game/types'
+
+type PlayerLinkInfo = {
+  id: string
+  name: string
+  username?: string
+  link: string
+}
 
 const sectionVariants: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -74,21 +81,62 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     [saveGameSettings],
   )
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false)
-  const [playerLinks, setPlayerLinks] = useState<Record<string, string>>({})
+  const [appOrigin, setAppOrigin] = useState('')
+  const [playerLinkSearch, setPlayerLinkSearch] = useState('')
   const [gameCode, setGameCode] = useState<string | null>(null)
   const [currentState, setCurrentState] = useState<SerializedGameState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadingMessage, setLoadingMessage] = useState('Summoning the spirits...')
 
-  const buildLinksFromState = useCallback((state: SerializedGameState) => {
-    if (typeof window === 'undefined') return {}
-    const origin = window.location.origin.replace(/\/$/, '')
-    const links: Record<string, string> = {}
-    state.players.forEach((player) => {
-      links[player.id] = `${origin}/game/play/${player.id}`
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setAppOrigin(window.location.origin.replace(/\/$/, ''))
+  }, [])
+
+  const resolvePlayerIdentity = useCallback(
+    (playerId: string, fallbackName: string): { name: string; username?: string } => {
+      const assigned = assignedPlayers.find((player) => player.id === playerId)
+      if (assigned) {
+        return { name: assigned.name, username: assigned.username }
+      }
+
+      const registry = players.find((player) => player.id === playerId)
+      if (registry) {
+        return { name: registry.name, username: registry.username }
+      }
+
+      return { name: fallbackName || playerId }
+    },
+    [assignedPlayers, players],
+  )
+
+  const playerLinks = useMemo(() => {
+    if (!currentState || !appOrigin) return {}
+
+    const links: Record<string, PlayerLinkInfo> = {}
+    currentState.players.forEach((player) => {
+      const identity = resolvePlayerIdentity(player.id, player.name)
+      links[player.id] = {
+        id: player.id,
+        name: identity.name,
+        username: identity.username,
+        link: `${appOrigin}/game/play/${player.id}`,
+      }
     })
     return links
-  }, [])
+  }, [currentState, appOrigin, resolvePlayerIdentity])
+
+  const filteredPlayerLinks = useMemo(() => {
+    const entries = Object.values(playerLinks)
+    if (!playerLinkSearch.trim()) return entries
+
+    const term = playerLinkSearch.toLowerCase()
+    return entries.filter((info) =>
+      info.name.toLowerCase().includes(term) ||
+      (info.username && info.username.toLowerCase().includes(term)) ||
+      info.id.toLowerCase().includes(term)
+    )
+  }, [playerLinks, playerLinkSearch])
 
   useEffect(() => {
     if (isConnected) {
@@ -157,7 +205,6 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             console.log('Fetched existing state:', state)
             setCurrentState(state)
             setGameCode(state.id)
-            setPlayerLinks(buildLinksFromState(state))
 
             // Update game settings from the loaded state
             if (state.settings) {
@@ -221,17 +268,14 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     }
 
     fetchGameData()
-  }, [buildLinksFromState])
+  }, [])
 
   useEffect(() => {
     if (gameState) {
-      console.log('Updated gameState from socket:', gameState)
-      console.log('Players in gameState:', gameState.players)
       setCurrentState(gameState)
       setGameCode(gameState.id)
-      setPlayerLinks(buildLinksFromState(gameState))
     }
-  }, [gameState, buildLinksFromState])
+  }, [gameState])
 
   const activeState = currentState ?? gameState ?? null
 
@@ -244,12 +288,42 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   }, [activeState])
 
   const handleStatusToggle = async () => {
-    if (!currentState) return
+    if (isUpdatingStatus) return
 
-    const newStatus = currentState.isActive ? 'lobby' : 'active'
     setIsUpdatingStatus(true)
 
     try {
+      let stateForUpdate: SerializedGameState | null = currentState
+
+      if (!stateForUpdate) {
+        const stateResponse = await fetch(
+          `/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`,
+          {
+            cache: 'no-store',
+            headers: {
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+          },
+        )
+
+        if (stateResponse.ok) {
+          const stateData = await stateResponse.json()
+          if (stateData.success && stateData.gameState) {
+            stateForUpdate = stateData.gameState as SerializedGameState
+            setCurrentState(stateForUpdate)
+            setGameCode(stateForUpdate.id)
+          }
+        }
+      }
+
+      if (!stateForUpdate) {
+        toast.error('Unable to update game state. Try refreshing the manor view.')
+        return
+      }
+
+      const newStatus = stateForUpdate.isActive ? 'lobby' : 'active'
+
       const response = await fetch(`/api/v1/game/status?_t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
@@ -282,11 +356,10 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
           if (stateResponse.ok) {
             const stateData = await stateResponse.json()
             if (stateData.success && stateData.gameState) {
-              const state = stateData.gameState
+              const state = stateData.gameState as SerializedGameState
               console.log('Fetched updated state after activation:', state)
               setCurrentState(state)
               setGameCode(state.id)
-              setPlayerLinks(buildLinksFromState(state))
             }
           }
 
@@ -306,6 +379,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               setAssignedPlayers(assignedData.players)
             }
           }
+        } else {
+          setCurrentState((prev) => (prev ? { ...prev, isActive: false } : prev))
         }
       } else {
         throw new Error(data.error || 'Failed to update game status')
@@ -337,7 +412,6 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
 
       if (response.ok) {
         setAssignedPlayers([])
-        setPlayerLinks({})
         setGameCode(null)
         setCurrentState(null)
         toast.success('Game reset - players preserved in registry')
@@ -351,11 +425,11 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     }
   }
 
-  const copyPlayerLink = (playerCode: string, playerName: string) => {
-    const link = playerLinks[playerCode]
-    if (link) {
-      navigator.clipboard.writeText(link)
-      toast.success(`Invitation copied for ${playerName}!`)
+  const copyPlayerLink = (playerCode: string) => {
+    const info = playerLinks[playerCode]
+    if (info) {
+      navigator.clipboard.writeText(info.link)
+      toast.success(`Invitation copied for ${info.name}!`)
     }
   }
 
@@ -628,48 +702,6 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             </motion.section>
           )}
 
-          {/* Player Links Section - only show when game is active and has players */}
-          {Object.keys(playerLinks).length > 0 && currentState?.isActive && (
-            <motion.section
-              initial="hidden"
-              animate="visible"
-              variants={sectionVariants}
-              transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
-              className="mx-auto w-full max-w-[90rem] mb-6"
-            >
-              <div className="manor-card space-y-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <h3 className="font-manor text-xl uppercase tracking-[0.25em] text-manor-candle">
-                    Player Access Links
-                  </h3>
-                </div>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-                  {Object.entries(playerLinks).map(([playerId, link]) => (
-                    <div
-                      key={playerId}
-                      className="rounded-2xl border border-white/10 bg-black/20 p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="font-body text-sm uppercase tracking-[0.3em] text-manor-candle/80">
-                          {playerId}
-                        </p>
-                        <button
-                          className="text-xs text-manor-parchment/70 transition hover:text-manor-candle"
-                          onClick={() => copyPlayerLink(playerId, playerId)}
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <p className="mt-2 break-words font-body text-xs text-manor-parchment/60">
-                        {link}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </motion.section>
-          )}
-
           {/* Active Game Player Grid - only when game is active */}
           {activeState?.isActive && activeState.players.length > 0 && (
             <motion.section
@@ -692,6 +724,78 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                   players={activeState.players as SerializedGameState['players']}
                   showRoles={true}
                 />
+              </div>
+            </motion.section>
+          )}
+
+          {/* Player Links Section - only show when game is active and has players */}
+          {Object.keys(playerLinks).length > 0 && currentState?.isActive && (
+            <motion.section
+              initial="hidden"
+              animate="visible"
+              variants={sectionVariants}
+              transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
+              className="mx-auto w-full max-w-[90rem] mb-6"
+            >
+              <div className="manor-card space-y-4">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <h3 className="font-manor text-xl uppercase tracking-[0.25em] text-manor-candle">
+                    Player Access Links
+                  </h3>
+                  <div className="relative w-full md:w-64">
+                    <input
+                      type="text"
+                      value={playerLinkSearch}
+                      onChange={(event) => setPlayerLinkSearch(event.target.value)}
+                      placeholder="Search by name or username..."
+                      className="w-full rounded-lg border border-white/10 bg-manor-shadow/50 px-3 py-2 text-sm text-manor-candle placeholder:text-manor-parchment/40 focus:outline-none focus:ring-2 focus:border-manor-wine/50 focus:ring-manor-wine/30"
+                    />
+                    {playerLinkSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setPlayerLinkSearch('')}
+                        className="absolute right-3 top-2.5 text-manor-parchment/60 hover:text-manor-candle"
+                        aria-label="Clear player link search"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredPlayerLinks.map((info) => (
+                    <div
+                      key={info.id}
+                      className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-1">
+                          <p className="font-manor text-base uppercase tracking-[0.2em] text-manor-candle font-semibold">
+                            {info.name}
+                          </p>
+                          {info.username && (
+                            <p className="font-body text-sm text-manor-candle font-semibold">@{info.username}</p>
+                          )}
+                          <p className="text-xs text-manor-parchment/60">Code: {info.id}</p>
+                        </div>
+                        <button
+                          className="text-xs text-manor-parchment/70 transition hover:text-manor-candle"
+                          onClick={() => copyPlayerLink(info.id)}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      <p className="mt-2 break-words font-body text-xs text-manor-parchment/60">
+                        {info.link}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                {filteredPlayerLinks.length === 0 && (
+                  <p className="text-sm text-manor-parchment/60 italic">
+                    No players match “{playerLinkSearch}”.
+                  </p>
+                )}
               </div>
             </motion.section>
           )}

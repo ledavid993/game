@@ -1,118 +1,119 @@
-import { randomBytes } from 'crypto';
+import { randomBytes } from 'crypto'
 
-import configPromise from '@payload-config';
-import type { Payload } from 'payload';
-import { getPayload } from 'payload';
+import configPromise from '@payload-config'
+import type { Payload } from 'payload'
+import { getPayload } from 'payload'
 
-import type { Game, GamePlayer } from '@/payload-types';
-import type { Server as IOServer } from 'socket.io';
+import type { Game, GamePlayer } from '@/payload-types'
+import type { Server as IOServer } from 'socket.io'
 import type {
   CooldownStatus,
   KillAttemptResult,
   KillEvent,
   Player,
   SerializedGameState,
-} from '@/app/lib/game/types';
+} from '@/app/lib/game/types'
 
-const SINGLE_GAME_CODE = 'GAME_MAIN';
+const SINGLE_GAME_CODE = 'GAME_MAIN'
 
 interface PlayerInput {
-  id: string;
-  name: string;
-  username: string;
-  phone?: string;
-  email?: string;
+  id: string
+  name: string
+  username: string
+  phone?: string
+  email?: string
 }
 
 interface StartGameOptions {
-  players?: PlayerInput[];
-  playerNames?: string[];
-  settings?: Partial<Game['settings']>;
-  hostDisplayName?: string;
-  baseUrl: string;
+  players?: PlayerInput[]
+  playerNames?: string[]
+  settings?: Partial<Game['settings']>
+  hostDisplayName?: string
+  baseUrl: string
 }
 
 interface GameStateOptions {
-  gameCode?: string | null;
-  playerCode?: string | null;
+  gameCode?: string | null
+  playerCode?: string | null
 }
 
 interface KillAttemptOptions {
-  gameCode: string;
-  murdererCode: string;
-  victimCode: string;
+  gameCode: string
+  murdererCode: string
+  victimCode: string
 }
 
 interface ResetGameOptions {
-  gameCode: string;
+  gameCode: string
 }
 
 interface SerializedStateWithPlayer extends SerializedGameState {
   playerData?: {
-    player: Player;
-    cooldownStatus: CooldownStatus;
-    availableTargets: Player[];
-  } | null;
+    player: Player
+    cooldownStatus: CooldownStatus
+    availableTargets: Player[]
+  } | null
 }
 
-let payloadClient: Payload | null = null;
+let payloadClient: Payload | null = null
 
 export async function getPayloadClient(): Promise<Payload> {
   if (!payloadClient) {
-    payloadClient = await getPayload({ config: await configPromise });
+    payloadClient = await getPayload({ config: await configPromise })
   }
-  return payloadClient;
+  return payloadClient
 }
 
 export function generateCode(prefix: string, length = 6): string {
-  const bytes = randomBytes(length);
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let token = '';
+  const bytes = randomBytes(length)
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let token = ''
   for (let i = 0; i < length; i++) {
-    token += alphabet[bytes[i] % alphabet.length];
+    token += alphabet[bytes[i] % alphabet.length]
   }
-  return `${prefix}_${token}`;
+  return `${prefix}_${token}`
 }
 
 type PlayerSeed = {
-  game: Game['id'];
-  displayName: string;
-  username: string;
-  playerCode: string;
-  phone?: string;
-  email?: string;
-  role?: 'murderer' | 'civilian';
-  isAlive?: boolean;
-  joinedAt?: string;
-  kills?: number;
-};
+  game: Game['id']
+  displayName: string
+  username: string
+  playerCode: string
+  phone?: string
+  email?: string
+  role?: 'murderer' | 'civilian'
+  isAlive?: boolean
+  joinedAt?: string
+  kills?: number
+}
 
 function assignRoles<T extends PlayerSeed>(players: T[], murdererCount: number): T[] {
   if (murdererCount > players.length) {
-    throw new Error(`Cannot assign ${murdererCount} murderers to ${players.length} players. Murderer count must be less than or equal to player count.`);
+    throw new Error(
+      `Cannot assign ${murdererCount} murderers to ${players.length} players. Murderer count must be less than or equal to player count.`,
+    )
   }
 
   if (murdererCount < 1) {
-    throw new Error('Must have at least 1 murderer');
+    throw new Error('Must have at least 1 murderer')
   }
 
-  const sanitized = [...players];
-  const shuffled = sanitized.sort(() => Math.random() - 0.5);
+  const sanitized = [...players]
+  const shuffled = sanitized.sort(() => Math.random() - 0.5)
 
   for (let i = 0; i < shuffled.length; i++) {
-    shuffled[i].role = i < murdererCount ? 'murderer' : 'civilian';
+    shuffled[i].role = i < murdererCount ? 'murderer' : 'civilian'
   }
 
-  return shuffled;
+  return shuffled
 }
 
 function toPlayer(doc: GamePlayer): Player {
-  const joinedAt = doc.joinedAt ? new Date(doc.joinedAt).getTime() : Date.now();
+  const joinedAt = doc.joinedAt ? new Date(doc.joinedAt).getTime() : Date.now()
 
   // Extract player name from the related PlayerRegistry
-  const playerName = typeof doc.player === 'object' && doc.player
-    ? doc.player.displayName
-    : doc.playerCode; // fallback to playerCode if no name available
+  const playerName =
+    typeof doc.player === 'object' && doc.player ? doc.player.displayName : doc.playerCode // fallback to playerCode if no name available
 
   return {
     id: doc.playerCode,
@@ -123,12 +124,12 @@ function toPlayer(doc: GamePlayer): Player {
     socketId: doc.socketId ?? undefined,
     deviceType: doc.deviceType && doc.deviceType !== 'unknown' ? doc.deviceType : undefined,
     joinedAt,
-  };
+  }
 }
 
 function serializeKillEvents(game: Game | null): KillEvent[] {
   if (!game?.killEvents || !Array.isArray(game.killEvents)) {
-    return [];
+    return []
   }
 
   return game.killEvents
@@ -140,22 +141,20 @@ function serializeKillEvents(game: Game | null): KillEvent[] {
       successful: event?.successful ?? true,
       message: event?.message ?? 'Elimination recorded',
     }))
-    .sort((a, b) => a.timestamp - b.timestamp);
+    .sort((a, b) => a.timestamp - b.timestamp)
 }
 
 function calculateStats(game: Game, players: GamePlayer[]): SerializedGameState['stats'] {
-  const alivePlayers = players.filter((p) => p.isAlive);
-  const deadPlayers = players.filter((p) => !p.isAlive);
-  const murderers = alivePlayers.filter((p) => p.role === 'murderer');
-  const civilians = alivePlayers.filter((p) => p.role === 'civilian');
-  const killEvents = serializeKillEvents(game);
+  const alivePlayers = players.filter((p) => p.isAlive)
+  const deadPlayers = players.filter((p) => !p.isAlive)
+  const murderers = alivePlayers.filter((p) => p.role === 'murderer')
+  const civilians = alivePlayers.filter((p) => p.role === 'civilian')
+  const killEvents = serializeKillEvents(game)
 
-  const startedAt = game.startedAt ? new Date(game.startedAt).getTime() : undefined;
-  const endedAt = game.endedAt ? new Date(game.endedAt).getTime() : undefined;
+  const startedAt = game.startedAt ? new Date(game.startedAt).getTime() : undefined
+  const endedAt = game.endedAt ? new Date(game.endedAt).getTime() : undefined
 
-  const duration = startedAt
-    ? (endedAt ?? Date.now()) - startedAt
-    : undefined;
+  const duration = startedAt ? (endedAt ?? Date.now()) - startedAt : undefined
 
   return {
     totalPlayers: players.length,
@@ -167,35 +166,36 @@ function calculateStats(game: Game, players: GamePlayer[]): SerializedGameState[
     gameStarted: !!startedAt,
     gameEnded: !!endedAt || game.status === 'completed',
     duration,
-  };
+  }
 }
 
 function calculateCooldownStatus(player: GamePlayer, game: Game): CooldownStatus {
-  const now = Date.now();
-  const cooldownMillis = Math.max(game.settings?.cooldownMinutes ?? 10, 0) * 60 * 1000;
+  const now = Date.now()
+  const cooldownMillis = Math.max(game.settings?.cooldownMinutes ?? 10, 0) * 60 * 1000
   const cooldownExpiresAt = player.cooldownExpiresAt
     ? new Date(player.cooldownExpiresAt).getTime()
     : player.lastKillAt
       ? new Date(player.lastKillAt).getTime() + cooldownMillis
-      : 0;
-  const remainingMillis = Math.max(0, cooldownExpiresAt - now);
-  const remainingSeconds = Math.ceil(remainingMillis / 1000);
+      : 0
+  const remainingMillis = Math.max(0, cooldownExpiresAt - now)
+  const remainingSeconds = Math.ceil(remainingMillis / 1000)
 
   return {
     canKill: remainingMillis <= 0,
     remainingSeconds,
     remainingMinutes: Math.ceil(remainingSeconds / 60),
     lastKillTime: player.lastKillAt ? new Date(player.lastKillAt).getTime() : undefined,
-  };
+  }
 }
 
-async function serializeGameStateInternal(game: Game, players: GamePlayer[]): Promise<SerializedGameState> {
-  const startTime = game.startedAt ? new Date(game.startedAt).getTime() : undefined;
-  const endTime = game.endedAt ? new Date(game.endedAt).getTime() : undefined;
+async function serializeGameStateInternal(
+  game: Game,
+  players: GamePlayer[],
+): Promise<SerializedGameState> {
+  const startTime = game.startedAt ? new Date(game.startedAt).getTime() : undefined
+  const endTime = game.endedAt ? new Date(game.endedAt).getTime() : undefined
 
-  const serializedPlayers = players.map(toPlayer);
-  console.log('Serializing game state with players:', players);
-  console.log('Serialized players:', serializedPlayers);
+  const serializedPlayers = players.map(toPlayer)
 
   return {
     id: game.code,
@@ -211,10 +211,13 @@ async function serializeGameStateInternal(game: Game, players: GamePlayer[]): Pr
       theme: (game.settings?.theme as 'christmas' | 'halloween' | 'classic') ?? 'christmas',
     },
     stats: calculateStats(game, players),
-  };
+  }
 }
 
-async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: Game; players: GamePlayer[] }> {
+async function getGameAndPlayers(
+  payload: Payload,
+  game: Game,
+): Promise<{ game: Game; players: GamePlayer[] }> {
   const playersResult = (await payload.find({
     collection: 'game-players',
     where: {
@@ -224,12 +227,12 @@ async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: 
     },
     depth: 1, // Load player relationship data
     limit: 100,
-  })) as unknown as { docs: GamePlayer[] };
+  })) as unknown as { docs: GamePlayer[] }
 
   return {
     game,
     players: playersResult.docs,
-  };
+  }
 }
 
 export async function createGameSession({
@@ -239,36 +242,34 @@ export async function createGameSession({
   hostDisplayName,
   baseUrl,
 }: StartGameOptions) {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
 
-  let finalPlayers: PlayerInput[];
+  let finalPlayers: PlayerInput[]
 
   // Handle new player structure
   if (players && Array.isArray(players)) {
     if (players.length < 1) {
-      throw new Error('At least 1 player is required to begin');
+      throw new Error('At least 1 player is required to begin')
     }
 
     // Validate player data
-    const invalidPlayers = players.filter(p => !p.name.trim() || !p.username.trim());
+    const invalidPlayers = players.filter((p) => !p.name.trim() || !p.username.trim())
     if (invalidPlayers.length > 0) {
-      throw new Error('All players must have a name and username');
+      throw new Error('All players must have a name and username')
     }
 
-    finalPlayers = players;
+    finalPlayers = players
   }
   // Handle legacy playerNames structure
   else if (playerNames && Array.isArray(playerNames)) {
     if (playerNames.length < 1) {
-      throw new Error('At least 1 player is required to begin');
+      throw new Error('At least 1 player is required to begin')
     }
 
-    const trimmedNames = playerNames
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0);
+    const trimmedNames = playerNames.map((name) => name.trim()).filter((name) => name.length > 0)
 
     if (trimmedNames.length < 1) {
-      throw new Error('At least 1 valid player name is required');
+      throw new Error('At least 1 valid player name is required')
     }
 
     // Convert legacy format to new structure
@@ -276,27 +277,25 @@ export async function createGameSession({
       id: `legacy-${index}`,
       name,
       username: `Player${index + 1}`,
-    }));
+    }))
   } else {
-    throw new Error('Either players or playerNames must be provided');
+    throw new Error('Either players or playerNames must be provided')
   }
 
-  console.log('Final players to process:', finalPlayers);
-
-  const now = new Date().toISOString();
-  const murdererCount = settings?.murdererCount ?? 1;
+  const now = new Date().toISOString()
+  const murdererCount = settings?.murdererCount ?? 1
 
   const existingGames = (await payload.find({
     collection: 'games',
     depth: 0,
     limit: 1,
     sort: '-updatedAt',
-  })) as unknown as { docs: Game[] };
+  })) as unknown as { docs: Game[] }
 
-  let game: Game;
+  let game: Game
 
   if (existingGames.docs.length > 0) {
-    const current = existingGames.docs[0] as Game;
+    const current = existingGames.docs[0] as Game
 
     await payload.update({
       collection: 'games',
@@ -315,7 +314,7 @@ export async function createGameSession({
         },
         killEvents: [],
       },
-    });
+    })
 
     const existingPlayers = (await payload.find({
       collection: 'game-players',
@@ -326,25 +325,22 @@ export async function createGameSession({
       },
       depth: 0,
       limit: 1000,
-    })) as unknown as { docs: GamePlayer[] };
+    })) as unknown as { docs: GamePlayer[] }
 
-    console.log('Deleting existing players:', existingPlayers.docs.length);
     await Promise.all(
       existingPlayers.docs.map(async (player) => {
-        console.log('Deleting player:', player.displayName, player.username);
         return payload.delete({
           collection: 'game-players',
           id: String(player.id),
-        });
+        })
       }),
-    );
-    console.log('Finished deleting existing players');
+    )
 
     game = (await payload.findByID({
       collection: 'games',
       id: String(current.id),
       depth: 0,
-    })) as unknown as Game;
+    })) as unknown as Game
   } else {
     game = (await payload.create({
       collection: 'games',
@@ -361,7 +357,7 @@ export async function createGameSession({
         },
         killEvents: [],
       },
-    })) as unknown as Game;
+    })) as unknown as Game
   }
 
   const playersToCreate: PlayerSeed[] = finalPlayers.map((player) => ({
@@ -375,57 +371,52 @@ export async function createGameSession({
     isAlive: true,
     joinedAt: now,
     kills: 0,
-  }));
+  }))
 
-  console.log('Players to create:', playersToCreate);
+  const assignedPlayers = assignRoles(playersToCreate, murdererCount)
 
-  const assignedPlayers = assignRoles(playersToCreate, murdererCount);
-  console.log('Assigned players:', assignedPlayers);
-
-  const createdPlayers: GamePlayer[] = [];
+  const createdPlayers: GamePlayer[] = []
 
   for (const player of assignedPlayers) {
-    console.log('Creating player:', player);
     try {
       const created = (await payload.create({
         collection: 'game-players',
         data: {
           ...player,
         },
-      })) as unknown as GamePlayer;
-      console.log('Created player:', created);
-      createdPlayers.push(created);
+      })) as unknown as GamePlayer
+      createdPlayers.push(created)
     } catch (error) {
-      console.error('Error creating player:', error);
-      throw error;
+      console.error('Error creating player:', error)
+      throw error
     }
   }
 
-  const serializedState = await serializeGameStateInternal(game, createdPlayers);
+  const serializedState = await serializeGameStateInternal(game, createdPlayers)
 
-  const playerLinks: Record<string, string> = {};
+  const playerLinks: Record<string, string> = {}
   createdPlayers.forEach((player) => {
-    playerLinks[player.playerCode] = `${baseUrl.replace(/\/$/, '')}/game/play/${player.playerCode}`;
-  });
+    playerLinks[player.playerCode] = `${baseUrl.replace(/\/$/, '')}/game/play/${player.playerCode}`
+  })
 
   return {
     game: serializedState,
     playerLinks,
-  };
+  }
 }
 
 export async function getSerializedGameState({
   gameCode,
   playerCode,
 }: GameStateOptions): Promise<SerializedStateWithPlayer> {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
 
   if (!gameCode && !playerCode) {
-    throw new Error('Either gameCode or playerCode must be provided');
+    throw new Error('Either gameCode or playerCode must be provided')
   }
 
-  let game: Game | null = null;
-  let playerDoc: GamePlayer | null = null;
+  let game: Game | null = null
+  let playerDoc: GamePlayer | null = null
 
   if (playerCode) {
     const playerResult = (await payload.find({
@@ -437,18 +428,18 @@ export async function getSerializedGameState({
       },
       depth: 0,
       limit: 1,
-    })) as unknown as { docs: GamePlayer[] };
+    })) as unknown as { docs: GamePlayer[] }
 
     if (playerResult.docs.length === 0) {
-      throw new Error('Player not found');
+      throw new Error('Player not found')
     }
 
-    playerDoc = playerResult.docs[0] as GamePlayer;
+    playerDoc = playerResult.docs[0] as GamePlayer
     game = (await payload.findByID({
       collection: 'games',
       id: String(playerDoc.game),
       depth: 0,
-    })) as unknown as Game;
+    })) as unknown as Game
   }
 
   if (!game && gameCode) {
@@ -461,13 +452,13 @@ export async function getSerializedGameState({
       },
       depth: 0,
       limit: 1,
-    })) as unknown as { docs: Game[] };
+    })) as unknown as { docs: Game[] }
 
     if (gameResult.docs.length === 0) {
-      throw new Error('Game not found');
+      throw new Error('Game not found')
     }
 
-    game = gameResult.docs[0] as Game;
+    game = gameResult.docs[0] as Game
   }
 
   if (!game) {
@@ -481,28 +472,28 @@ export async function getSerializedGameState({
       sort: '-updatedAt',
       depth: 0,
       limit: 1,
-    })) as unknown as { docs: Game[] };
+    })) as unknown as { docs: Game[] }
 
     if (fallback.docs.length === 0) {
-      throw new Error('Unable to resolve game state');
+      throw new Error('Unable to resolve game state')
     }
 
-    game = fallback.docs[0] as Game;
+    game = fallback.docs[0] as Game
   }
 
-  const { players } = await getGameAndPlayers(await getPayloadClient(), game);
-  const serialized = await serializeGameStateInternal(game, players);
+  const { players } = await getGameAndPlayers(await getPayloadClient(), game)
+  const serialized = await serializeGameStateInternal(game, players)
 
   if (playerDoc) {
-    const player = players.find((p) => p.playerCode === playerDoc?.playerCode);
+    const player = players.find((p) => p.playerCode === playerDoc?.playerCode)
     if (!player) {
-      throw new Error('Player not found in game');
+      throw new Error('Player not found in game')
     }
 
-    const cooldownStatus = calculateCooldownStatus(player, game);
+    const cooldownStatus = calculateCooldownStatus(player, game)
     const availableTargets = players
       .filter((p) => p.playerCode !== player.playerCode && p.isAlive)
-      .map(toPlayer);
+      .map(toPlayer)
 
     return {
       ...serialized,
@@ -511,24 +502,24 @@ export async function getSerializedGameState({
         cooldownStatus,
         availableTargets,
       },
-    };
+    }
   }
 
-  return serialized;
+  return serialized
 }
 
 function getSocketServer(): IOServer | undefined {
-  return (globalThis as unknown as { server?: { io?: IOServer } }).server?.io;
+  return (globalThis as unknown as { server?: { io?: IOServer } }).server?.io
 }
 
 function emitToGame(gameCode: string, event: string, payload: unknown) {
-  const io = getSocketServer();
-  if (!io) return;
-  io.to(`game-${gameCode}`).emit(event, payload);
+  const io = getSocketServer()
+  if (!io) return
+  io.to(`game-${gameCode}`).emit(event, payload)
 }
 
 export async function resetGame({ gameCode }: ResetGameOptions) {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
 
   const gameResult = (await payload.find({
     collection: 'games',
@@ -539,13 +530,13 @@ export async function resetGame({ gameCode }: ResetGameOptions) {
     },
     depth: 0,
     limit: 1,
-  })) as unknown as { docs: Game[] };
+  })) as unknown as { docs: Game[] }
 
   if (gameResult.docs.length === 0) {
-    throw new Error('Game not found');
+    throw new Error('Game not found')
   }
 
-  const game = gameResult.docs[0] as Game;
+  const game = gameResult.docs[0] as Game
 
   // First: Remove all game-player associations (but keep players in registry)
   const existingPlayers = (await payload.find({
@@ -557,26 +548,24 @@ export async function resetGame({ gameCode }: ResetGameOptions) {
     },
     depth: 0,
     limit: 1000,
-  })) as unknown as { docs: GamePlayer[] };
+  })) as unknown as { docs: GamePlayer[] }
 
-  console.log('Removing game-player associations:', existingPlayers.docs.length);
   await Promise.all(
     existingPlayers.docs.map(async (player) => {
       return payload.delete({
         collection: 'game-players',
         id: String(player.id),
-      });
+      })
     }),
-  );
+  )
 
   // Second: Delete the entire game session
-  console.log('Deleting game session:', game.id);
   await payload.delete({
     collection: 'games',
     id: String(game.id),
-  });
+  })
 
-  emitToGame(gameCode, 'game-ended', 'reset');
+  emitToGame(gameCode, 'game-ended', 'reset')
 }
 
 export async function recordKillAttempt({
@@ -584,7 +573,7 @@ export async function recordKillAttempt({
   murdererCode,
   victimCode,
 }: KillAttemptOptions): Promise<KillAttemptResult> {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
 
   const gameResult = (await payload.find({
     collection: 'games',
@@ -595,19 +584,19 @@ export async function recordKillAttempt({
     },
     depth: 0,
     limit: 1,
-  })) as unknown as { docs: Game[] };
+  })) as unknown as { docs: Game[] }
 
   if (gameResult.docs.length === 0) {
-    throw new Error('Game not found');
+    throw new Error('Game not found')
   }
 
-  const game = gameResult.docs[0] as Game;
+  const game = gameResult.docs[0] as Game
 
   if (game.status !== 'active') {
     return {
       success: false,
       message: 'Game is not active',
-    };
+    }
   }
 
   const playersResult = (await payload.find({
@@ -619,63 +608,63 @@ export async function recordKillAttempt({
     },
     depth: 0,
     limit: 2,
-  })) as unknown as { docs: GamePlayer[] };
+  })) as unknown as { docs: GamePlayer[] }
 
   if (playersResult.docs.length < 2) {
     return {
       success: false,
       message: 'Player not found',
-    };
+    }
   }
 
-  const murdererDoc = playersResult.docs.find((p) => p.playerCode === murdererCode) as GamePlayer;
-  const victimDoc = playersResult.docs.find((p) => p.playerCode === victimCode) as GamePlayer;
+  const murdererDoc = playersResult.docs.find((p) => p.playerCode === murdererCode) as GamePlayer
+  const victimDoc = playersResult.docs.find((p) => p.playerCode === victimCode) as GamePlayer
 
   if (!murdererDoc || !victimDoc) {
     return {
       success: false,
       message: 'Player not found',
-    };
+    }
   }
 
   if (murdererDoc.role !== 'murderer') {
     return {
       success: false,
       message: 'Only murderers can kill',
-    };
+    }
   }
 
   if (!murdererDoc.isAlive) {
     return {
       success: false,
       message: 'You are dead and cannot act',
-    };
+    }
   }
 
   if (!victimDoc.isAlive) {
     return {
       success: false,
       message: `${victimDoc.displayName} is already dead`,
-    };
+    }
   }
 
   if (murdererDoc.playerCode === victimDoc.playerCode) {
     return {
       success: false,
       message: 'You cannot kill yourself',
-    };
+    }
   }
 
-  const cooldownStatus = calculateCooldownStatus(murdererDoc, game);
+  const cooldownStatus = calculateCooldownStatus(murdererDoc, game)
   if (!cooldownStatus.canKill) {
     return {
       success: false,
       message: `Wait ${cooldownStatus.remainingMinutes}m ${cooldownStatus.remainingSeconds % 60}s before killing again`,
       cooldownRemaining: cooldownStatus.remainingSeconds,
-    };
+    }
   }
 
-  const now = new Date().toISOString();
+  const now = new Date().toISOString()
 
   await payload.update({
     collection: 'game-players',
@@ -683,32 +672,34 @@ export async function recordKillAttempt({
     data: {
       isAlive: false,
     },
-  });
+  })
 
   await payload.update({
     collection: 'game-players',
     id: String(murdererDoc.id),
     data: {
       lastKillAt: now,
-      cooldownExpiresAt: new Date(Date.now() + (game.settings?.cooldownMinutes ?? 10) * 60 * 1000).toISOString(),
+      cooldownExpiresAt: new Date(
+        Date.now() + (game.settings?.cooldownMinutes ?? 10) * 60 * 1000,
+      ).toISOString(),
       kills: (murdererDoc.kills ?? 0) + 1,
     },
-  });
+  })
 
   const updatedVictim = (await payload.findByID({
     collection: 'game-players',
     id: String(victimDoc.id),
     depth: 0,
-  })) as unknown as GamePlayer;
+  })) as unknown as GamePlayer
 
   const updatedMurderer = (await payload.findByID({
     collection: 'game-players',
     id: String(murdererDoc.id),
     depth: 0,
-  })) as unknown as GamePlayer;
+  })) as unknown as GamePlayer
 
-  const killEventId = generateCode('KILL', 8);
-  const killMessage = `💀 ${victimDoc.displayName} was eliminated by ${murdererDoc.displayName}`;
+  const killEventId = generateCode('KILL', 8)
+  const killMessage = `💀 ${victimDoc.displayName} was eliminated by ${murdererDoc.displayName}`
 
   await payload.update({
     collection: 'games',
@@ -726,26 +717,26 @@ export async function recordKillAttempt({
         },
       ],
     },
-  });
+  })
 
   const updatedGame = (await payload.findByID({
     collection: 'games',
     id: String(game.id),
     depth: 0,
-  })) as unknown as Game;
+  })) as unknown as Game
 
-  const { players } = await getGameAndPlayers(payload, updatedGame);
-  const serializedState = await serializeGameStateInternal(updatedGame, players);
+  const { players } = await getGameAndPlayers(payload, updatedGame)
+  const serializedState = await serializeGameStateInternal(updatedGame, players)
 
-  const aliveMurderers = players.filter((p) => p.role === 'murderer' && p.isAlive);
-  const aliveCivilians = players.filter((p) => p.role === 'civilian' && p.isAlive);
+  const aliveMurderers = players.filter((p) => p.role === 'murderer' && p.isAlive)
+  const aliveCivilians = players.filter((p) => p.role === 'civilian' && p.isAlive)
 
-  let winner: 'murderers' | 'civilians' | null = null;
+  let winner: 'murderers' | 'civilians' | null = null
 
   if (aliveMurderers.length === 0) {
-    winner = 'civilians';
+    winner = 'civilians'
   } else if (aliveMurderers.length >= aliveCivilians.length && aliveCivilians.length > 0) {
-    winner = 'murderers';
+    winner = 'murderers'
   }
 
   emitToGame(gameCode, 'player-killed', {
@@ -755,9 +746,9 @@ export async function recordKillAttempt({
     timestamp: Date.now(),
     successful: true,
     message: killMessage,
-  });
+  })
 
-  emitToGame(gameCode, 'game-state', serializedState);
+  emitToGame(gameCode, 'game-state', serializedState)
 
   if (winner) {
     await payload.update({
@@ -767,9 +758,9 @@ export async function recordKillAttempt({
         status: 'completed',
         endedAt: new Date().toISOString(),
       },
-    });
+    })
 
-    emitToGame(gameCode, 'game-ended', winner);
+    emitToGame(gameCode, 'game-ended', winner)
   }
 
   return {
@@ -783,11 +774,11 @@ export async function recordKillAttempt({
       successful: true,
       timestamp: Date.now(),
     },
-  };
+  }
 }
 
 export async function updateHostSocket(gameCode: string, socketId: string) {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
   const gameResult = (await payload.find({
     collection: 'games',
     where: {
@@ -797,13 +788,13 @@ export async function updateHostSocket(gameCode: string, socketId: string) {
     },
     depth: 0,
     limit: 1,
-  })) as unknown as { docs: Game[] };
+  })) as unknown as { docs: Game[] }
 
   if (gameResult.docs.length === 0) {
-    return;
+    return
   }
 
-  const game = gameResult.docs[0] as Game;
+  const game = gameResult.docs[0] as Game
 
   await payload.update({
     collection: 'games',
@@ -811,11 +802,11 @@ export async function updateHostSocket(gameCode: string, socketId: string) {
     data: {
       hostSocketId: socketId,
     },
-  });
+  })
 }
 
 export async function updatePlayerSocket(playerCode: string, socketId: string) {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
   const playerResult = (await payload.find({
     collection: 'game-players',
     where: {
@@ -825,13 +816,13 @@ export async function updatePlayerSocket(playerCode: string, socketId: string) {
     },
     depth: 0,
     limit: 1,
-  })) as unknown as { docs: GamePlayer[] };
+  })) as unknown as { docs: GamePlayer[] }
 
   if (playerResult.docs.length === 0) {
-    return;
+    return
   }
 
-  const player = playerResult.docs[0] as GamePlayer;
+  const player = playerResult.docs[0] as GamePlayer
 
   await payload.update({
     collection: 'game-players',
@@ -839,11 +830,11 @@ export async function updatePlayerSocket(playerCode: string, socketId: string) {
     data: {
       socketId,
     },
-  });
+  })
 }
 
 export async function clearSocket(socketId: string) {
-  const payload = await getPayloadClient();
+  const payload = await getPayloadClient()
   const players = (await payload.find({
     collection: 'game-players',
     where: {
@@ -853,7 +844,7 @@ export async function clearSocket(socketId: string) {
     },
     depth: 0,
     limit: 20,
-  })) as unknown as { docs: GamePlayer[] };
+  })) as unknown as { docs: GamePlayer[] }
 
   await Promise.all(
     players.docs.map((doc) =>
@@ -863,5 +854,5 @@ export async function clearSocket(socketId: string) {
         data: { socketId: null },
       }),
     ),
-  );
+  )
 }

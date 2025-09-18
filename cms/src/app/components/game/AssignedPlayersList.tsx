@@ -24,6 +24,8 @@ export function AssignedPlayersList({
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({})
   const [isAssigningAll, setIsAssigningAll] = useState(false)
   const [isRemovingAll, setIsRemovingAll] = useState(false)
+  const [showAvailablePlayers, setShowAvailablePlayers] = useState(true)
+  const [availableSearchTerm, setAvailableSearchTerm] = useState('')
 
   const registryLookup = useMemo(() => {
     const map = new Map<string, PlayerData>()
@@ -38,6 +40,16 @@ export function AssignedPlayersList({
     const assignedIds = new Set(assignedPlayers.map(p => p.id))
     return registryPlayers.filter(player => !assignedIds.has(player.id))
   }, [registryPlayers, assignedPlayers])
+
+  const filteredAvailablePlayers = useMemo(() => {
+    if (!availableSearchTerm.trim()) return availablePlayers
+
+    const term = availableSearchTerm.toLowerCase()
+    return availablePlayers.filter(player =>
+      player.name.toLowerCase().includes(term) ||
+      player.username.toLowerCase().includes(term)
+    )
+  }, [availablePlayers, availableSearchTerm])
 
   // Filter assigned players based on search
   const filteredAssignedPlayers = useMemo(() => {
@@ -361,25 +373,60 @@ export function AssignedPlayersList({
 
       {/* Available Players Quick Add */}
       {!disabled && availablePlayers.length > 0 && (
-        <div className="border border-white/10 rounded-lg p-3 bg-manor-shadow/20">
-          <h4 className="font-medium text-manor-candle text-sm mb-2">Available Players</h4>
-          <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
-            {availablePlayers.slice(0, 10).map(player => (
-              <button
-                key={player.id}
-                onClick={() => assignPlayer(player.id)}
-                disabled={loadingStates[player.id] || disabled}
-                className="px-2 py-1 text-xs rounded border border-white/20 text-manor-parchment/80 hover:text-manor-candle hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loadingStates[player.id] ? '...' : player.name}
-              </button>
-            ))}
-            {availablePlayers.length > 10 && (
-              <span className="px-2 py-1 text-xs text-manor-parchment/60">
-                +{availablePlayers.length - 10} more...
-              </span>
-            )}
-          </div>
+        <div className="border border-white/10 rounded-lg bg-manor-shadow/20">
+          <button
+            type="button"
+            onClick={() => setShowAvailablePlayers(prev => !prev)}
+            className="w-full flex items-center justify-between gap-3 px-3 py-3 text-left text-sm font-medium text-manor-candle hover:bg-manor-shadow/40 transition-colors"
+          >
+            <span>Available Players ({availablePlayers.length})</span>
+            <span className="text-xs text-manor-parchment/70">
+              {showAvailablePlayers ? 'Hide' : 'Show'}
+            </span>
+          </button>
+
+          {showAvailablePlayers && (
+            <div className="px-3 pb-3 space-y-3">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={availableSearchTerm}
+                  onChange={(event) => setAvailableSearchTerm(event.target.value)}
+                  placeholder="Search available players..."
+                  className="w-full px-3 py-2 rounded-lg border border-white/10 bg-manor-shadow/60 text-manor-candle placeholder:text-manor-parchment/40 focus:outline-none focus:ring-2 focus:border-manor-wine/50 focus:ring-manor-wine/30 text-sm"
+                />
+                {availableSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setAvailableSearchTerm('')}
+                    className="absolute right-3 top-2.5 text-manor-parchment/60 hover:text-manor-candle"
+                    aria-label="Clear available player search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto pr-1">
+                {filteredAvailablePlayers.length > 0 ? (
+                  filteredAvailablePlayers.map(player => (
+                    <button
+                      key={player.id}
+                      onClick={() => assignPlayer(player.id)}
+                      disabled={loadingStates[player.id] || disabled}
+                      className="px-2 py-1 text-xs rounded border border-white/20 text-manor-parchment/80 hover:text-manor-candle hover:bg-white/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loadingStates[player.id] ? '...' : player.name}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-xs text-manor-parchment/60 italic px-1">
+                    No players match your search
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
