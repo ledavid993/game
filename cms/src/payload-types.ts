@@ -213,7 +213,7 @@ export interface GamePlayer {
    * Unique code for this player in this specific game session
    */
   playerCode: string;
-  role?: ('civilian' | 'murderer') | null;
+  role?: ('civilian' | 'murderer' | 'reviver' | 'detective' | 'bodyguard' | 'nurse' | 'vigilante' | 'doctor') | null;
   isAlive?: boolean | null;
   deviceType?: ('unknown' | 'mobile' | 'desktop' | 'tv') | null;
   socketId?: string | null;

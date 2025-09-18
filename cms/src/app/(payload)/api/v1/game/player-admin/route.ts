@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayloadClient } from '@/lib/game/payloadGameService'
 import type { GamePlayer, PlayerRegistry } from '@/payload-types'
+import { ALL_ROLES, type PlayerRole } from '@/app/lib/game/roles'
 
 type PlayerAdminAction = 'change-role' | 'remove' | 'kill'
 
 interface AdminRequestBody {
   playerCode?: string
   action?: PlayerAdminAction
-  role?: 'murderer' | 'civilian'
+  role?: PlayerRole
 }
 
 export async function POST(request: NextRequest) {
@@ -35,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'change-role': {
-        if (!role) {
+        if (!role || !ALL_ROLES.includes(role)) {
           return NextResponse.json({ success: false, error: 'role is required for change-role action' }, { status: 400 })
         }
 

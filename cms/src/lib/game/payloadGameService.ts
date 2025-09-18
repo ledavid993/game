@@ -13,6 +13,7 @@ import type {
   Player,
   SerializedGameState,
 } from '@/app/lib/game/types'
+import { SUPPORT_ROLES, type PlayerRole, isMurdererRole } from '@/app/lib/game/roles'
 
 const SINGLE_GAME_CODE = 'GAME_MAIN'
 
@@ -81,7 +82,7 @@ type PlayerSeed = {
   playerCode: string
   phone?: string
   email?: string
-  role?: 'murderer' | 'civilian'
+  role?: PlayerRole
   isAlive?: boolean
   joinedAt?: string
   kills?: number
@@ -98,11 +99,20 @@ function assignRoles<T extends PlayerSeed>(players: T[], murdererCount: number):
     throw new Error('Must have at least 1 murderer')
   }
 
-  const sanitized = [...players]
-  const shuffled = sanitized.sort(() => Math.random() - 0.5)
+  const shuffled = [...players]
+  shuffled.sort(() => Math.random() - 0.5)
+
+  let supportIndex = 0
 
   for (let i = 0; i < shuffled.length; i++) {
-    shuffled[i].role = i < murdererCount ? 'murderer' : 'civilian'
+    if (i < murdererCount) {
+      shuffled[i].role = 'murderer'
+    } else if (supportIndex < SUPPORT_ROLES.length) {
+      shuffled[i].role = SUPPORT_ROLES[supportIndex]
+      supportIndex += 1
+    } else {
+      shuffled[i].role = 'civilian'
+    }
   }
 
   return shuffled
@@ -147,8 +157,8 @@ function serializeKillEvents(game: Game | null): KillEvent[] {
 function calculateStats(game: Game, players: GamePlayer[]): SerializedGameState['stats'] {
   const alivePlayers = players.filter((p) => p.isAlive)
   const deadPlayers = players.filter((p) => !p.isAlive)
-  const murderers = alivePlayers.filter((p) => p.role === 'murderer')
-  const civilians = alivePlayers.filter((p) => p.role === 'civilian')
+  const murderers = alivePlayers.filter((p) => isMurdererRole((p.role ?? 'civilian') as PlayerRole))
+  const allies = alivePlayers.filter((p) => !isMurdererRole((p.role ?? 'civilian') as PlayerRole))
   const killEvents = serializeKillEvents(game)
 
   const startedAt = game.startedAt ? new Date(game.startedAt).getTime() : undefined
@@ -161,7 +171,7 @@ function calculateStats(game: Game, players: GamePlayer[]): SerializedGameState[
     alivePlayers: alivePlayers.length,
     deadPlayers: deadPlayers.length,
     murderers: murderers.length,
-    civilians: civilians.length,
+    civilians: allies.length,
     totalKills: killEvents.filter((event) => event.successful).length,
     gameStarted: !!startedAt,
     gameEnded: !!endedAt || game.status === 'completed',
@@ -728,14 +738,18 @@ export async function recordKillAttempt({
   const { players } = await getGameAndPlayers(payload, updatedGame)
   const serializedState = await serializeGameStateInternal(updatedGame, players)
 
-  const aliveMurderers = players.filter((p) => p.role === 'murderer' && p.isAlive)
-  const aliveCivilians = players.filter((p) => p.role === 'civilian' && p.isAlive)
+  const aliveMurderers = players.filter(
+    (p) => isMurdererRole((p.role ?? 'civilian') as PlayerRole) && p.isAlive,
+  )
+  const aliveSupport = players.filter(
+    (p) => !isMurdererRole((p.role ?? 'civilian') as PlayerRole) && p.isAlive,
+  )
 
   let winner: 'murderers' | 'civilians' | null = null
 
   if (aliveMurderers.length === 0) {
     winner = 'civilians'
-  } else if (aliveMurderers.length >= aliveCivilians.length && aliveCivilians.length > 0) {
+  } else if (aliveMurderers.length >= aliveSupport.length && aliveSupport.length > 0) {
     winner = 'murderers'
   }
 

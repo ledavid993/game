@@ -1,7 +1,9 @@
+import { PlayerRole } from './roles'
+
 export interface Player {
   id: string;
   name: string;
-  role: 'murderer' | 'civilian';
+  role: PlayerRole;
   isAlive: boolean;
   lastKillTime?: number;
   socketId?: string;

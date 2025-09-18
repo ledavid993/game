@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 
 import { useSocket } from './useSocket'
 import type { CooldownStatus, KillAttemptResult, KillEvent, Player } from '@/app/lib/game/types'
+import { ROLE_LABELS, isMurdererRole } from '@/app/lib/game/roles'
 
 const entranceVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -40,7 +41,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
       const currentPlayer = gameState.players.find((p: Player) => p.id === playerId)
       setPlayer(currentPlayer || null)
 
-      if (currentPlayer?.role === 'murderer' && currentPlayer.isAlive) {
+      if (currentPlayer && isMurdererRole(currentPlayer.role) && currentPlayer.isAlive) {
         setAvailableTargets(gameState.players.filter((target: Player) => target.id !== playerId && target.isAlive))
       } else {
         setAvailableTargets([])
@@ -107,8 +108,8 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
 
     const cleanupEnded = onGameEnded((winner: 'murderers' | 'civilians') => {
       const isWinner =
-        (player?.role === 'murderer' && winner === 'murderers') ||
-        (player?.role === 'civilian' && winner === 'civilians')
+        (player && isMurdererRole(player.role) && winner === 'murderers') ||
+        (player && !isMurdererRole(player.role) && winner === 'civilians')
 
       toast.success(
         isWinner ? `🎉 Your faction prevails.` : `😢 Defeat. The ${winner} triumph.`,
@@ -184,8 +185,8 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
   const narrativeStatus = useMemo(() => {
     if (!player) return 'Awaiting assignment'
     if (!player.isAlive) return 'Your story ends here. Stay silent.'
-    if (player.role === 'murderer') return 'Move quietly. Choose carefully.'
-    return 'Observe, listen, and survive.'
+    if (isMurdererRole(player.role)) return 'Move quietly. Choose carefully.'
+    return `Embrace your ${ROLE_LABELS[player.role]} duties.`
   }, [player])
 
   if (!isConnected) {
@@ -249,11 +250,11 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
               </h1>
             </div>
             <div className="rounded-full border border-white/10 px-4 py-2 font-body text-sm uppercase tracking-[0.3em] text-manor-parchment/70">
-              {player.role === 'murderer' ? 'MURDERER' : 'CIVILIAN'} · {player.isAlive ? 'ALIVE' : 'ELIMINATED'}
+              {(ROLE_LABELS[player.role] ?? player.role).toUpperCase()} · {player.isAlive ? 'ALIVE' : 'ELIMINATED'}
             </div>
           </div>
           <p className="font-body text-sm text-manor-parchment/80 md:text-base">{narrativeStatus}</p>
-          {cooldownStatus && player.role === 'murderer' && (
+          {cooldownStatus && isMurdererRole(player.role) && (
             <div className="rounded-xl border border-[rgba(177,54,30,0.3)] bg-manor-wine/20 p-4">
               <p className="font-body text-xs uppercase tracking-[0.35em] text-manor-parchment/60">
                 Murderer Cooldown
@@ -277,7 +278,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           <h2 className="font-manor text-lg uppercase tracking-[0.25em] text-manor-candle">
             Tonight’s Brief
           </h2>
-          {player.role === 'murderer' ? (
+          {isMurdererRole(player.role) ? (
             <ul className="space-y-3 font-body text-sm text-manor-parchment/80 md:text-base">
               <li>• Pretend innocence. Watch your cooldown. Strike when shadows swallow the room.</li>
               <li>• Victims must be alive and unsuspecting. Consecutive kills demand patience.</li>
@@ -292,7 +293,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           )}
         </motion.section>
 
-        {player.role === 'murderer' && player.isAlive && (
+        {isMurdererRole(player.role) && player.isAlive && (
           <motion.section
             initial="hidden"
             animate="visible"
@@ -339,7 +340,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           </motion.section>
         )}
 
-        {player.role !== 'murderer' && player.isAlive && (
+        {!isMurdererRole(player.role) && player.isAlive && (
           <motion.section
             initial="hidden"
             animate="visible"

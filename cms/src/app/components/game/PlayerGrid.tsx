@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import { Player } from '@/app/lib/game/types'
+import { ROLE_LABELS, isMurdererRole } from '@/app/lib/game/roles'
 
 interface PlayerGridProps {
   players: Player[]
@@ -20,20 +21,20 @@ export function PlayerGrid({
   const getPlayerEmoji = (player: Player): string => {
     if (!player.isAlive) return '💀'
     if (showRoles) {
-      return player.role === 'murderer' ? '🔪' : '🧑‍🎄'
+      return isMurdererRole(player.role) ? '🔪' : '🧑‍🎄'
     }
     return '🧑‍🎄'
   }
 
   const getPlayerStatusColor = (player: Player): string => {
     if (!player.isAlive) return 'bg-gray-700 border-gray-500'
-    if (showRoles && player.role === 'murderer') return 'bg-red-900 border-red-500'
+    if (showRoles && isMurdererRole(player.role)) return 'bg-red-900 border-red-500'
     return 'bg-green-900 border-green-500'
   }
 
   const getPlayerTextColor = (player: Player): string => {
     if (!player.isAlive) return 'text-gray-400'
-    if (showRoles && player.role === 'murderer') return 'text-red-300'
+    if (showRoles && isMurdererRole(player.role)) return 'text-red-300'
     return 'text-green-300'
   }
 
@@ -85,10 +86,8 @@ export function PlayerGrid({
 
             <h3 className={`font-bold text-lg ${getPlayerTextColor(player)}`}>{player.name}</h3>
 
-            {showRoles && (
-              <p className={`text-sm mt-1 ${getPlayerTextColor(player)}`}>
-                {player.role.charAt(0).toUpperCase() + player.role.slice(1)}
-              </p>
+            {showRoles && ROLE_LABELS[player.role] && (
+              <p className={`text-sm mt-1 text-manor-parchment/70`}>{ROLE_LABELS[player.role]}</p>
             )}
 
             <div className="mt-2 flex justify-center items-center gap-2">

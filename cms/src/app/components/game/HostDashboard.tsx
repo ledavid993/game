@@ -14,11 +14,14 @@ import { LoadingScreen } from './LoadingScreen'
 import { useSocket } from './useSocket'
 import type { PlayerData } from './PlayerCard'
 import type { KillEvent, Player, SerializedGameState, StartGameRequest } from '@/app/lib/game/types'
+import { ROLE_LABELS, SUPPORT_ROLES, type PlayerRole, isMurdererRole } from '@/app/lib/game/roles'
 
 type PlayerLinkInfo = {
   id: string
   name: string
   username?: string
+  role: PlayerRole
+  roleLabel: string
   link: string
 }
 
@@ -121,10 +124,13 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     const links: Record<string, PlayerLinkInfo> = {}
     currentState.players.forEach((player) => {
       const identity = resolvePlayerIdentity(player.id, player.name)
+      const role = (player.role ?? 'civilian') as PlayerRole
       links[player.id] = {
         id: player.id,
         name: identity.name,
         username: identity.username,
+        role,
+        roleLabel: ROLE_LABELS[role] ?? role,
         link: `${appOrigin}/game/play/${player.id}`,
       }
     })
@@ -142,6 +148,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       info.id.toLowerCase().includes(term)
     )
   }, [playerLinks, playerLinkSearch])
+
+  const roleActionOptions: PlayerRole[] = ['murderer', 'civilian', ...SUPPORT_ROLES]
 
   useEffect(() => {
     if (isConnected) {
@@ -185,95 +193,117 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   }, [onPlayerKilled, onPlayerJoined, onGameStarted, onGameEnded])
 
   // Load game state and players on component mount
+  const fetchGameData = useCallback(async () => {
+    setIsLoading(true)
+    setLoadingMessage('Connecting to the manor...')
+
+    try {
+      const stateResponse = await fetch(
+        `/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`,
+        {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+        },
+      )
+
+      if (stateResponse.ok) {
+        const stateData = await stateResponse.json()
+        if (stateData.success && stateData.gameState) {
+          const state = stateData.gameState as SerializedGameState
+          console.log('Fetched existing state:', state)
+          setCurrentState(state)
+          setGameCode(state.id)
+
+          if (state.settings) {
+            setGameSettings({
+              maxPlayers: state.settings.maxPlayers,
+              cooldownMinutes: state.settings.cooldownMinutes,
+              murdererCount: state.settings.murdererCount,
+            })
+          }
+        }
+      }
+
+      setLoadingMessage('Gathering the guest registry...')
+
+      const playersResponse = await fetch(`/api/v1/players?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      })
+
+      if (playersResponse.ok) {
+        const playersData = await playersResponse.json()
+        if (playersData.success && playersData.players) {
+          console.log('Fetched players from registry:', playersData.players)
+          setPlayers(playersData.players)
+        }
+      }
+
+      setLoadingMessage('Reviewing current game assignments...')
+
+      const assignedResponse = await fetch(`/api/v1/game/assigned-players?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      })
+
+      if (assignedResponse.ok) {
+        const assignedData = await assignedResponse.json()
+        if (assignedData.success && assignedData.players) {
+          console.log('Fetched assigned players:', assignedData.players)
+          setAssignedPlayers(assignedData.players)
+        }
+      }
+
+      setLoadingMessage('Preparing the stage...')
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    } catch (error) {
+      console.warn('Failed to fetch game data', error)
+      setLoadingMessage('Encountered spirits in the manor...')
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
-    const fetchGameData = async () => {
-      setIsLoading(true)
-      setLoadingMessage('Connecting to the manor...')
+    fetchGameData()
+  }, [fetchGameData])
 
-      try {
-        // Fetch game state
-        const stateResponse = await fetch(
-          `/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`,
-          {
-            cache: 'no-store',
-            headers: {
-              'Cache-Control': 'no-cache',
-              Pragma: 'no-cache',
-            },
-          },
-        )
-
-        if (stateResponse.ok) {
-          const stateData = await stateResponse.json()
-          if (stateData.success && stateData.gameState) {
-            const state = stateData.gameState as SerializedGameState
-            console.log('Fetched existing state:', state)
-            setCurrentState(state)
-            setGameCode(state.id)
-
-            // Update game settings from the loaded state
-            if (state.settings) {
-              setGameSettings({
-                maxPlayers: state.settings.maxPlayers,
-                cooldownMinutes: state.settings.cooldownMinutes,
-                murdererCount: state.settings.murdererCount,
-              })
-            }
-          }
-        }
-
-        setLoadingMessage('Gathering the guest registry...')
-
-        // Fetch all players from the registry
-        const playersResponse = await fetch(`/api/v1/players?_t=${Date.now()}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
-          },
-        })
-
-        if (playersResponse.ok) {
-          const playersData = await playersResponse.json()
-          if (playersData.success && playersData.players) {
-            console.log('Fetched players from registry:', playersData.players)
-            setPlayers(playersData.players)
-          }
-        }
-
-        setLoadingMessage('Reviewing current game assignments...')
-
-        // Fetch assigned players for the current game
-        const assignedResponse = await fetch(`/api/v1/game/assigned-players?_t=${Date.now()}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
-          },
-        })
-
-        if (assignedResponse.ok) {
-          const assignedData = await assignedResponse.json()
-          if (assignedData.success && assignedData.players) {
-            console.log('Fetched assigned players:', assignedData.players)
-            setAssignedPlayers(assignedData.players)
-          }
-        }
-
-        setLoadingMessage('Preparing the stage...')
-        // Small delay to show the final loading message
-        await new Promise((resolve) => setTimeout(resolve, 500))
-      } catch (error) {
-        console.warn('Failed to fetch game data', error)
-        setLoadingMessage('Encountered spirits in the manor...')
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-      } finally {
-        setIsLoading(false)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchGameData()
       }
     }
 
-    fetchGameData()
-  }, [])
+    const handlePageShow = (event: Event) => {
+      const pageEvent = event as PageTransitionEvent
+      if ('persisted' in pageEvent) {
+        if (pageEvent.persisted) {
+          fetchGameData()
+        }
+      } else {
+        fetchGameData()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('pageshow', handlePageShow)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('pageshow', handlePageShow)
+    }
+  }, [fetchGameData])
 
   useEffect(() => {
     if (gameState) {
@@ -474,8 +504,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     (playersList: SerializedGameState['players'], prevStats: SerializedGameState['stats']) => {
       const alivePlayers = playersList.filter((player) => player.isAlive).length
       const deadPlayers = playersList.length - alivePlayers
-      const murdererCount = playersList.filter((player) => player.role === 'murderer').length
-      const civilianCount = playersList.filter((player) => player.role === 'civilian').length
+      const murdererCount = playersList.filter((player) => isMurdererRole(player.role ?? 'civilian')).length
+      const allyCount = playersList.filter((player) => !isMurdererRole(player.role ?? 'civilian')).length
 
       return {
         ...prevStats,
@@ -483,14 +513,14 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         alivePlayers,
         deadPlayers,
         murderers: murdererCount,
-        civilians: civilianCount,
+        civilians: allyCount,
       }
     },
     [],
   )
 
   const runPlayerAdminAction = useCallback(
-    async (player: Player, action: 'change-role' | 'remove' | 'kill', role?: 'murderer' | 'civilian') => {
+    async (player: Player, action: 'change-role' | 'remove' | 'kill', role?: PlayerRole) => {
       setIsPlayerActionPending(true)
       try {
         const response = await fetch('/api/v1/game/player-admin', {
@@ -544,7 +574,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         }
 
         if (action === 'change-role' && role) {
-          toast.success(`${player.name} role set to ${role}`)
+          toast.success(`${player.name} now serves as ${ROLE_LABELS[role]}`)
         } else if (action === 'remove') {
           toast.success(`${player.name} removed from the game`)
         } else if (action === 'kill') {
@@ -906,6 +936,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                           {info.username && (
                             <p className="font-body text-sm text-manor-candle font-semibold">@{info.username}</p>
                           )}
+                          <p className="text-xs text-manor-parchment/60">{info.roleLabel}</p>
                           <p className="text-xs text-manor-parchment/60">Code: {info.id}</p>
                         </div>
                         <button
@@ -955,32 +986,30 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                     {playerMenuState.player.id}
                   </p>
                 </div>
-                <div className="py-2">
-                  {playerMenuState.player.role !== 'murderer' && (
-                    <button
-                      disabled={isPlayerActionPending}
-                      onClick={() => runPlayerAdminAction(playerMenuState.player, 'change-role', 'murderer')}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 text-manor-candle disabled:opacity-50"
-                    >
-                      Set as Murderer
-                    </button>
-                  )}
-                  {playerMenuState.player.role !== 'civilian' && (
-                    <button
-                      disabled={isPlayerActionPending}
-                      onClick={() => runPlayerAdminAction(playerMenuState.player, 'change-role', 'civilian')}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-white/10 text-manor-candle disabled:opacity-50"
-                    >
-                      Set as Civilian
-                    </button>
-                  )}
+                <div className="py-2 space-y-1">
+                  {roleActionOptions
+                    .filter((role) => role !== (playerMenuState.player.role ?? 'civilian'))
+                    .map((roleOption) => (
+                        <button
+                          key={roleOption}
+                          disabled={isPlayerActionPending}
+                          onClick={() => runPlayerAdminAction(playerMenuState.player, 'change-role', roleOption)}
+                          className={`w-full px-4 py-2 text-left text-sm disabled:opacity-50 ${
+                            roleOption === 'murderer'
+                              ? 'hover:bg-red-900/30 text-red-300'
+                              : 'hover:bg-white/10 text-manor-candle'
+                          }`}
+                        >
+                          Assign {ROLE_LABELS[roleOption]} - {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
+                        </button>
+                      ))}
                   {playerMenuState.player.isAlive && (
                     <button
                       disabled={isPlayerActionPending}
                       onClick={() => runPlayerAdminAction(playerMenuState.player, 'kill')}
                       className="w-full px-4 py-2 text-left text-sm hover:bg-red-900/30 text-red-300 disabled:opacity-50"
                     >
-                      Mark as Dead
+                      Mark as Fallen
                     </button>
                   )}
                   <button

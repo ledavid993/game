@@ -1,4 +1,4 @@
-import type { CollectionConfig } from 'payload';
+import type { CollectionConfig } from 'payload'
 
 export const GamePlayers: CollectionConfig = {
   slug: 'game-players',
@@ -56,8 +56,14 @@ export const GamePlayers: CollectionConfig = {
       type: 'select',
       defaultValue: 'civilian',
       options: [
-        { label: 'Civilian', value: 'civilian' },
-        { label: 'Murderer', value: 'murderer' },
+        { label: 'Snowbound', value: 'civilian' },
+        { label: 'Krampus', value: 'murderer' },
+        { label: 'Sugarplum', value: 'reviver' },
+        { label: 'Candy Cane', value: 'detective' },
+        { label: 'Nutcracker', value: 'bodyguard' },
+        { label: 'Gingerbread', value: 'nurse' },
+        { label: 'North Star', value: 'vigilante' },
+        { label: 'Arctic Elf', value: 'doctor' },
       ],
     },
     {
@@ -99,4 +105,4 @@ export const GamePlayers: CollectionConfig = {
     },
   ],
   timestamps: true,
-};
+}

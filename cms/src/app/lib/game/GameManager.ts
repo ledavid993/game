@@ -10,7 +10,8 @@ import {
   GameError,
   GameErrorCodes,
   StartGameRequest,
-} from './types';
+} from './types'
+import { SUPPORT_ROLES, isMurdererRole } from './roles'
 
 export class GameManager {
   private static instance: GameManager;
@@ -136,14 +137,20 @@ export class GameManager {
     }
 
     // Shuffle players array
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
+    const shuffled = [...players].sort(() => Math.random() - 0.5)
 
-    // Assign exact number of murderers requested
-    for (let i = 0; i < requestedMurderers; i++) {
-      shuffled[i].role = 'murderer';
+    let supportIndex = 0
+
+    for (let i = 0; i < shuffled.length; i++) {
+      if (i < requestedMurderers) {
+        shuffled[i].role = 'murderer'
+      } else if (supportIndex < SUPPORT_ROLES.length) {
+        shuffled[i].role = SUPPORT_ROLES[supportIndex]
+        supportIndex += 1
+      } else {
+        shuffled[i].role = 'civilian'
+      }
     }
-
-    // Rest remain civilians (already set as default)
   }
 
   public killPlayer(murderer: string, victim: string): KillAttemptResult {
@@ -167,7 +174,7 @@ export class GameManager {
     }
 
     // Validate murderer role
-    if (murdererPlayer.role !== 'murderer') {
+    if (!isMurdererRole(murdererPlayer.role)) {
       throw new GameError(
         GameErrorCodes.INVALID_ROLE,
         'Only murderers can kill other players',
@@ -281,7 +288,7 @@ export class GameManager {
 
     // Civilians win if all murderers are dead
     const aliveMurderers = Array.from(this.gameState.players.values())
-      .filter(p => p.role === 'murderer' && p.isAlive);
+      .filter(p => isMurdererRole(p.role) && p.isAlive)
 
     if (aliveMurderers.length === 0) {
       this.endGame('civilians');
@@ -336,8 +343,8 @@ export class GameManager {
     const players = Array.from(this.gameState.players.values());
     const alivePlayers = players.filter(p => p.isAlive);
     const deadPlayers = players.filter(p => !p.isAlive);
-    const murderers = alivePlayers.filter(p => p.role === 'murderer');
-    const civilians = alivePlayers.filter(p => p.role === 'civilian');
+    const murderers = alivePlayers.filter(p => isMurdererRole(p.role))
+    const civilians = alivePlayers.filter(p => !isMurdererRole(p.role))
 
     return {
       totalPlayers: players.length,
@@ -377,7 +384,7 @@ export class GameManager {
 
   public getAvailableTargets(playerId: string): Player[] {
     const player = this.getPlayerById(playerId);
-    if (!player || player.role !== 'murderer' || !player.isAlive) {
+    if (!player || !isMurdererRole(player.role) || !player.isAlive) {
       return [];
     }
 

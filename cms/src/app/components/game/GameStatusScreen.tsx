@@ -31,7 +31,11 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
       id: currentState.id,
       isActive: currentState.isActive,
       stats: currentState.stats,
-      players: currentState.players.map((player) => ({ id: player.id, isAlive: player.isAlive, role: player.role })),
+      players: currentState.players.map((player) => ({
+        id: player.id,
+        isAlive: player.isAlive,
+        role: player.role,
+      })),
       killEvents: currentState.killEvents?.map((event) => event.id) ?? [],
     })
     stateFingerprintRef.current = fingerprint
@@ -48,10 +52,7 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
       if (playerFilter === 'dead' && player.isAlive) return false
 
       if (!term) return true
-      return (
-        player.name.toLowerCase().includes(term) ||
-        player.id.toLowerCase().includes(term)
-      )
+      return player.name.toLowerCase().includes(term) || player.id.toLowerCase().includes(term)
     })
   }, [activeState.players, playerFilter, searchTerm])
 
@@ -61,7 +62,9 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
 
     const poll = async () => {
       try {
-        const response = await fetch(`/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`, { cache: 'no-store' })
+        const response = await fetch(`/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`, {
+          cache: 'no-store',
+        })
         if (!response.ok) return
         const data = await response.json()
         if (data.success && data.gameState) {
@@ -70,7 +73,11 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
             id: nextState.id,
             isActive: nextState.isActive,
             stats: nextState.stats,
-            players: nextState.players.map((player) => ({ id: player.id, isAlive: player.isAlive, role: player.role })),
+            players: nextState.players.map((player) => ({
+              id: player.id,
+              isAlive: player.isAlive,
+              role: player.role,
+            })),
             killEvents: nextState.killEvents?.map((event) => event.id) ?? [],
           })
           if (nextFingerprint !== stateFingerprintRef.current && !cancelled) {
@@ -94,7 +101,8 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
     }
   }, [])
 
-  const playerDensity = filteredPlayers.length >= 60 ? "ultra" : filteredPlayers.length >= 30 ? "dense" : "normal"
+  const playerDensity =
+    filteredPlayers.length >= 60 ? 'ultra' : filteredPlayers.length >= 30 ? 'dense' : 'normal'
 
   return (
     <div className="w-screen h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(177,54,30,0.2),_transparent_55%),linear-gradient(140deg,_rgba(9,11,16,0.96)_0%,_rgba(17,22,34,0.92)_55%,_rgba(4,5,9,0.98)_100%)]">
@@ -117,28 +125,6 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
       </div>
 
       <div className="relative z-20 h-full flex flex-col">
-        <motion.header
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="flex-shrink-0 px-6 py-8 text-center border-b border-white/10 backdrop-blur"
-        >
-          <h1 className="font-manor text-[clamp(1.8rem,3vw,2.6rem)] uppercase tracking-[0.4em] text-manor-candle mb-4">
-            Manor Status Board
-          </h1>
-          <div className="flex flex-wrap items-center justify-center gap-3 text-xs sm:text-sm uppercase tracking-[0.3em] text-manor-parchment/70">
-            <span className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5">
-              🆔 Game Code: <span className="text-manor-candle">{activeState.id}</span>
-            </span>
-            <span className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5">
-              {activeState.stats.gameEnded ? '🏁 Performance Concluded' : activeState.isActive ? '🎭 Performance In Progress' : '🛋️ Lobby Gathering'}
-            </span>
-            <span className="flex items-center gap-2 px-3 py-1 rounded-full border border-white/10 bg-white/5">
-              ⏱ Updated {new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </span>
-          </div>
-        </motion.header>
-
         <div className="flex-1 overflow-hidden">
           <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 px-6 py-6 overflow-hidden">
             <div className="flex flex-col gap-6 overflow-hidden">
@@ -151,15 +137,6 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
                 <div className="p-5">
                   <GameStats gameState={activeState} />
                 </div>
-              </motion.section>
-
-              <motion.section
-                initial={{ opacity: 0, x: -25 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-lg shadow-xl flex-1 min-h-[18rem] overflow-hidden"
-              >
-                <LiveFeed killEvents={activeState.killEvents || []} className="bg-transparent h-full" highlightNewEvent={false} />
               </motion.section>
             </div>
 
@@ -181,11 +158,12 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
                 <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
                   <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
                     {(['all', 'alive', 'dead'] as const).map((option) => {
-                      const label = option === 'all'
-                        ? `All (${totalPlayers})`
-                        : option === 'alive'
-                          ? `Alive (${aliveCount})`
-                          : `Departed (${deadCount})`
+                      const label =
+                        option === 'all'
+                          ? `All (${totalPlayers})`
+                          : option === 'alive'
+                            ? `Alive (${aliveCount})`
+                            : `Departed (${deadCount})`
                       return (
                         <button
                           key={option}

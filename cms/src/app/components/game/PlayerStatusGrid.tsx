@@ -3,6 +3,7 @@
 import React from 'react'
 import { motion } from 'framer-motion'
 import type { Player } from '@/app/lib/game/types'
+import { ROLE_LABELS, isMurdererRole } from '@/app/lib/game/roles'
 
 type PlayerDensity = 'normal' | 'dense' | 'ultra'
 
@@ -110,20 +111,23 @@ export function PlayerStatusGrid({
                 return <span className="block whitespace-nowrap">{player.name}</span>
               }
 
-              const marqueeDuration = Math.max(3, player.name.length * 0.3)
-              const marqueeContent = [player.name, player.name, player.name]
+              const marqueeDuration = Math.max(2.5, player.name.length * 0.25)
+              const marqueeSegment = `${player.name}\u00A0\u00A0`
+              const marqueeStyle = {
+                ['--marquee-duration' as const]: `${marqueeDuration}s`,
+              }
 
               return (
-                <div className="relative w-full overflow-hidden">
-                  <div
-                    className="flex whitespace-nowrap gap-8"
-                    style={{
-                      willChange: 'transform',
-                      animation: `player-status-marquee ${marqueeDuration}s linear infinite`
-                    }}
-                  >
-                    {marqueeContent.map((content, idx) => (
-                      <span key={`${player.id}-marquee-${idx}`}>{content}</span>
+                <div className="player-marquee-container">
+                  <div className="player-marquee-track" style={marqueeStyle}>
+                    {[0, 1].map((dup) => (
+                      <span
+                        key={`${player.id}-marquee-${dup}`}
+                        aria-hidden={dup > 0}
+                        className="player-marquee-segment"
+                      >
+                        {marqueeSegment}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -136,23 +140,55 @@ export function PlayerStatusGrid({
           >
             {player.isAlive ? 'Alive' : 'Departed'}
           </div>
-          {!player.isAlive && player.role === 'murderer' && (
-            <div className={`${styles.murdererSize} text-manor-parchment/60 mt-2`}>
-              🔪 Revealed Murderer
-            </div>
-          )}
+          {(() => {
+            const baseLabel = ROLE_LABELS[player.role] ?? player.role
+            if (!baseLabel) return null
+
+            if (!player.isAlive && isMurdererRole(player.role)) {
+              return (
+                <div className={`${styles.murdererSize} text-manor-parchment/60 mt-2`}>
+                  🔪 Revealed {baseLabel}
+                </div>
+              )
+            }
+          })()}
           {player.isAlive && !isUltra && (
             <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-green-400 animate-ping" />
           )}
         </motion.div>
       ))}
+      <style jsx>{`
+        .player-marquee-container {
+          position: relative;
+          width: 100%;
+          overflow: hidden;
+        }
 
-    <style jsx>{`
-      @keyframes player-status-marquee {
-        0% { transform: translateX(0); }
-        100% { transform: translateX(-100%); }
-      }
-    `}</style>
+        .player-marquee-track {
+          display: inline-flex;
+          align-items: center;
+          min-width: 100%;
+          will-change: transform;
+          animation-name: player-status-marquee;
+          animation-duration: var(--marquee-duration, 3s);
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+
+        .player-marquee-segment {
+          white-space: nowrap;
+          padding-right: 1.5rem;
+        }
+
+        @keyframes player-status-marquee {
+          0% {
+            transform: translateX(0);
+          }
+          100% {
+            transform: translateX(-50%);
+          }
+        }
+      `}</style>
     </div>
   )
 }

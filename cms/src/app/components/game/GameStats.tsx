@@ -45,18 +45,6 @@ export function GameStats({ gameState }: GameStatsProps) {
       border: 'border-red-500/30',
       progress: progressDead,
     },
-    {
-      label: 'Murderers',
-      value: stats.murderers,
-      accent: 'bg-manor-wine/30 text-manor-candle',
-      border: 'border-manor-wine/40',
-    },
-    {
-      label: 'Civilians',
-      value: stats.civilians,
-      accent: 'bg-blue-500/15 text-blue-300',
-      border: 'border-blue-500/30',
-    },
   ]
 
   return (
@@ -73,11 +61,15 @@ export function GameStats({ gameState }: GameStatsProps) {
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-manor-parchment/60">
           <div className="rounded-lg border border-white/10 bg-black/20 p-3">
             <div className="text-xs uppercase tracking-[0.3em]">Duration</div>
-            <div className="mt-1 text-manor-candle font-semibold">{formatDuration(stats.duration)}</div>
+            <div className="mt-1 text-manor-candle font-semibold">
+              {formatDuration(stats.duration)}
+            </div>
           </div>
           <div className="rounded-lg border border-white/10 bg-black/20 p-3">
             <div className="text-xs uppercase tracking-[0.3em]">Murderers</div>
-            <div className="mt-1 text-manor-candle font-semibold">{stats.murderers}/{settings.murdererCount}</div>
+            <div className="mt-1 text-manor-candle font-semibold">
+              {stats.murderers}/{settings.murdererCount}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -92,8 +84,12 @@ export function GameStats({ gameState }: GameStatsProps) {
             className={`rounded-xl border ${row.border} bg-black/30 p-4`}
           >
             <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">{row.label}</div>
-              <div className={`px-3 py-1 rounded-full text-sm font-semibold ${row.accent}`}>{row.value}</div>
+              <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">
+                {row.label}
+              </div>
+              <div className={`px-3 py-1 rounded-full text-sm font-semibold ${row.accent}`}>
+                {row.value}
+              </div>
             </div>
             {row.progress !== undefined && (
               <div className="mt-3 h-2 rounded-full bg-white/5">
@@ -113,7 +109,9 @@ export function GameStats({ gameState }: GameStatsProps) {
         transition={{ delay: 0.3, duration: 0.4 }}
         className="rounded-xl border border-white/10 bg-black/20 p-4 text-center"
       >
-        <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">Total Kills</div>
+        <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">
+          Total Kills
+        </div>
         <div className="mt-1 text-xl font-semibold text-manor-candle">{stats.totalKills}</div>
       </motion.div>
     </div>
