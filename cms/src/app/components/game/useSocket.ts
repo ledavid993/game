@@ -9,7 +9,7 @@ import type {
   Player,
   SerializedGameState,
   SocketEvents,
-} from '@/app/(frontend)/lib/game/types'
+} from '@/app/lib/game/types'
 
 type Cleanup = () => void
 

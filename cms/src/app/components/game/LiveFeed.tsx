@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { KillEvent } from '@/app/(frontend)/lib/game/types'
+import { KillEvent } from '@/app/lib/game/types'
 
 interface LiveFeedProps {
   killEvents: KillEvent[]

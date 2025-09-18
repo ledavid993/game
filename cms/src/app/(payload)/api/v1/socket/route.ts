@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Server as SocketIOServer } from 'socket.io'
-import { GameManager } from '@/app/(frontend)/lib/game/GameManager'
+import { GameManager } from '@/app/lib/game/GameManager'
 
 let io: SocketIOServer | null = null
 

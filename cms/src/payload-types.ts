@@ -169,14 +169,26 @@ export interface Game {
   code: string;
   status?: ('lobby' | 'active' | 'completed' | 'cancelled') | null;
   hostSocketId?: string | null;
+  hostDisplayName?: string | null;
   settings: {
     cooldownMinutes: number;
     maxPlayers: number;
     murdererCount: number;
-    theme?: ('christmas' | 'halloween') | null;
+    theme?: ('christmas' | 'halloween' | 'classic') | null;
   };
   startedAt?: string | null;
   endedAt?: string | null;
+  killEvents?:
+    | {
+        eventId: string;
+        murdererName?: string | null;
+        victimName?: string | null;
+        timestamp: string;
+        message?: string | null;
+        successful?: boolean | null;
+        id?: string | null;
+      }[]
+    | null;
   summary?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -188,6 +200,7 @@ export interface Game {
 export interface GamePlayer {
   id: number;
   game: number | Game;
+  joinedAt?: string | null;
   displayName: string;
   playerCode: string;
   role?: ('civilian' | 'murderer') | null;
@@ -195,6 +208,7 @@ export interface GamePlayer {
   deviceType?: ('unknown' | 'mobile' | 'desktop' | 'tv') | null;
   socketId?: string | null;
   cooldownExpiresAt?: string | null;
+  lastKillAt?: string | null;
   kills?: number | null;
   updatedAt: string;
   createdAt: string;
@@ -312,6 +326,7 @@ export interface GamesSelect<T extends boolean = true> {
   code?: T;
   status?: T;
   hostSocketId?: T;
+  hostDisplayName?: T;
   settings?:
     | T
     | {
@@ -322,6 +337,17 @@ export interface GamesSelect<T extends boolean = true> {
       };
   startedAt?: T;
   endedAt?: T;
+  killEvents?:
+    | T
+    | {
+        eventId?: T;
+        murdererName?: T;
+        victimName?: T;
+        timestamp?: T;
+        message?: T;
+        successful?: T;
+        id?: T;
+      };
   summary?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -332,6 +358,7 @@ export interface GamesSelect<T extends boolean = true> {
  */
 export interface GamePlayersSelect<T extends boolean = true> {
   game?: T;
+  joinedAt?: T;
   displayName?: T;
   playerCode?: T;
   role?: T;
@@ -339,6 +366,7 @@ export interface GamePlayersSelect<T extends boolean = true> {
   deviceType?: T;
   socketId?: T;
   cooldownExpiresAt?: T;
+  lastKillAt?: T;
   kills?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -1,9 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Theme } from '@/app/(frontend)/lib/themes/types'
-import { christmasTheme } from '@/app/(frontend)/lib/themes/christmas'
-import { halloweenTheme } from '@/app/(frontend)/lib/themes/halloween'
+import { Theme } from '@/app/lib/themes/types'
+import { christmasTheme } from '@/app/lib/themes/christmas'
+import { halloweenTheme } from '@/app/lib/themes/halloween'
 
 const themes: Record<string, Theme> = {
   christmas: christmasTheme,

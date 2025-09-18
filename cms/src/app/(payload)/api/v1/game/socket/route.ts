@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { initializeSocket } from '@/app/(frontend)/lib/game/socket'
+import { initializeSocket } from '@/app/lib/game/socket'
 
 export async function GET(request: NextRequest) {
   try {

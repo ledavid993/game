@@ -1,9 +1,10 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { HostDashboard } from '@/components/game/HostDashboard';
-import { ThemeToggle } from '@/components/game/ThemeToggle';
-import { Toaster } from 'react-hot-toast';
+import { HostDashboard } from '@/app/components/game/HostDashboard'
+import { ThemeToggle } from '@/app/components/game/ThemeToggle'
+import React from 'react'
+
+import { Toaster } from 'react-hot-toast'
 
 export default function HostPage() {
   return (
@@ -39,5 +40,5 @@ export default function HostPage() {
         }}
       />
     </>
-  );
+  )
 }

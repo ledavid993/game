@@ -5,7 +5,7 @@ import { motion } from 'framer-motion'
 import { useSocket } from './useSocket'
 import { LiveFeed } from './LiveFeed'
 import { PlayerGrid } from './PlayerGrid'
-import { SerializedGameState, StartGameRequest } from '@/app/(frontend)/lib/game/types'
+import { SerializedGameState, StartGameRequest } from '@/lib/game/types'
 import toast from 'react-hot-toast'
 
 interface HostDashboardProps {
@@ -27,13 +27,14 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const [isStartingGame, setIsStartingGame] = useState(false)
   const [playerLinks, setPlayerLinks] = useState<Record<string, string>>({})
   const [showQRCodes, setShowQRCodes] = useState(false)
+  const [gameCode, setGameCode] = useState<string | null>(null)
 
   useEffect(() => {
-    // Join as host when component mounts
-    if (isConnected) {
-      joinAsHost()
+    // Join as host when connected and a game is active
+    if (isConnected && gameCode) {
+      joinAsHost(gameCode)
     }
-  }, [isConnected, joinAsHost])
+  }, [isConnected, joinAsHost, gameCode])
 
   useEffect(() => {
     // Set up event listeners
@@ -87,7 +88,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     setIsStartingGame(true)
 
     try {
-      const response = await fetch('/api/game/start', {
+      const response = await fetch('/api/v1/game/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,6 +101,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             murdererCount: Math.min(2, Math.floor(names.length / 3)),
             theme: 'christmas',
           },
+          hostDisplayName: 'Host',
         } as StartGameRequest),
       })
 
@@ -107,6 +109,9 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
 
       if (data.success) {
         setPlayerLinks(data.playerLinks)
+        if (data.game?.id) {
+          setGameCode(data.game.id)
+        }
         toast.success('Game started successfully!')
       } else {
         throw new Error(data.error || 'Failed to start game')
@@ -121,13 +126,19 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
 
   const handleResetGame = async () => {
     try {
-      const response = await fetch('/api/game/state', {
+      if (!gameCode) {
+        toast.error('No active game to reset')
+        return
+      }
+
+      const response = await fetch(`/api/v1/game/state?gameCode=${encodeURIComponent(gameCode)}`, {
         method: 'DELETE',
       })
 
       if (response.ok) {
         setPlayerNames('')
         setPlayerLinks({})
+        setGameCode(null)
         toast.success('Game reset successfully!')
       } else {
         throw new Error('Failed to reset game')
@@ -138,8 +149,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     }
   }
 
-  const copyPlayerLink = (playerId: string, playerName: string) => {
-    const link = playerLinks[playerId]
+  const copyPlayerLink = (playerCode: string, playerName: string) => {
+    const link = playerLinks[playerCode]
     if (link) {
       navigator.clipboard.writeText(link)
       toast.success(`Link copied for ${playerName}!`)

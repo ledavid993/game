@@ -1,4 +1,4 @@
-import { PlayerPageShell } from '@/app/(frontend)/components/game/PlayerPageShell'
+import { PlayerPageShell } from '@/app/components/game/PlayerPageShell'
 import React from 'react'
 
 type PlayerPageProps = {

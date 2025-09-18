@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSocket } from './useSocket'
-import { Player, CooldownStatus, KillAttemptResult } from '@/app/(frontend)/lib/game/types'
+import { Player, CooldownStatus, KillAttemptResult } from '@/app/lib/game/types'
 import toast from 'react-hot-toast'
 
 interface PlayerViewProps {
@@ -56,7 +56,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
       if (!playerId) return
 
       try {
-        const response = await fetch(`/api/game/state?playerId=${playerId}`)
+        const response = await fetch(`/api/v1/game/state?playerId=${playerId}`)
         const data = await response.json()
 
         if (data.playerData) {

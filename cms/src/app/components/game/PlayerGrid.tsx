@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { motion } from 'framer-motion'
-import { Player } from '@/app/(frontend)/lib/game/types'
+import { Player } from '@/app/lib/game/types'
 
 interface PlayerGridProps {
   players: Player[]
