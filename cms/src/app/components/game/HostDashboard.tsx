@@ -453,7 +453,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               </div>
 
               {/* Middle Column - Game Settings & Assigned Players */}
-              <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+              <div className="h-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 <div className="space-y-6 p-1">
                   {/* Game Settings - only show when not active */}
                   {!currentState?.isActive && (
