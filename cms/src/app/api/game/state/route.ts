@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     const gameManager = GameManager.getInstance();
     const gameState = gameManager.getGameState();
 
-    let response: any = {
+    const response: any = {
       gameState,
       stats: gameState.stats,
     };

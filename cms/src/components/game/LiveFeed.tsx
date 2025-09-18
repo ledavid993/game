@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { KillEvent } from '@/lib/game/types';
 
@@ -15,27 +15,38 @@ export function LiveFeed({
   killEvents,
   onPlayerKilled,
   className = '',
-  maxEvents = 10
+  maxEvents = 10,
 }: LiveFeedProps) {
   const [visibleEvents, setVisibleEvents] = useState<KillEvent[]>([]);
   const [newEvent, setNewEvent] = useState<KillEvent | null>(null);
+  const latestEventId = useRef<string | null>(null);
+  const clearHighlightTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
-    // Keep only the most recent events
     const recentEvents = killEvents.slice(-maxEvents);
     setVisibleEvents(recentEvents);
 
-    // Check for new events
-    if (killEvents.length > 0) {
-      const latestEvent = killEvents[killEvents.length - 1];
-      if (!visibleEvents.some(e => e.id === latestEvent.id)) {
-        setNewEvent(latestEvent);
-        onPlayerKilled?.(latestEvent);
+    const latest = recentEvents.at(-1);
 
-        // Clear the new event highlight after animation
-        setTimeout(() => setNewEvent(null), 3000);
+    if (latest && latest.id !== latestEventId.current) {
+      latestEventId.current = latest.id;
+      setNewEvent(latest);
+      onPlayerKilled?.(latest);
+
+      if (clearHighlightTimeout.current) {
+        clearTimeout(clearHighlightTimeout.current);
+      }
+
+      if (typeof window !== 'undefined') {
+        clearHighlightTimeout.current = setTimeout(() => setNewEvent(null), 3000);
       }
     }
+
+    return () => {
+      if (clearHighlightTimeout.current) {
+        clearTimeout(clearHighlightTimeout.current);
+      }
+    };
   }, [killEvents, maxEvents, onPlayerKilled]);
 
   const getEventIcon = (event: KillEvent): string => {

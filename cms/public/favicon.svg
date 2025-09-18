@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc">
+  <title id="title">Christmas Murder Mystery Icon</title>
+  <desc id="desc">A festive dagger and snowflake icon</desc>
+  <rect width="64" height="64" rx="12" fill="#c41e3a" />
+  <path d="M20 44 L44 20" stroke="#fff" stroke-width="6" stroke-linecap="round" />
+  <circle cx="28" cy="36" r="6" fill="#165b33" />
+  <text x="32" y="50" font-size="14" text-anchor="middle" fill="#ffd700" font-family="'Mountains of Christmas', serif">❄︎</text>
+</svg>

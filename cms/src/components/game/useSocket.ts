@@ -2,7 +2,32 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { SerializedGameState, KillEvent, Player, SocketEvents } from '@/lib/game/types';
+
+import type {
+  KillAttemptResult,
+  KillEvent,
+  Player,
+  SerializedGameState,
+  SocketEvents,
+} from '@/lib/game/types';
+
+type Cleanup = () => void;
+
+function resolveSocketUrl(): string | undefined {
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    return process.env.NEXT_PUBLIC_SOCKET_URL;
+  }
+
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL;
+  }
+
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+
+  return undefined;
+}
 
 export function useSocket() {
   const socketRef = useRef<Socket | null>(null);
@@ -10,103 +35,68 @@ export function useSocket() {
   const [gameState, setGameState] = useState<SerializedGameState | null>(null);
 
   useEffect(() => {
-    // Initialize socket connection
-    socketRef.current = io(process.env.NEXT_PUBLIC_SOCKET_URL || '', {
+    const socketUrl = resolveSocketUrl();
+
+    if (!socketUrl) {
+      console.warn('Socket connection skipped: no URL configured.');
+      return undefined;
+    }
+
+    const socket = io(socketUrl, {
       transports: ['websocket', 'polling'],
+      withCredentials: true,
     });
 
-    const socket = socketRef.current;
+    socketRef.current = socket;
 
-    // Connection handlers
-    socket.on('connect', () => {
-      console.log('Connected to server');
-      setIsConnected(true);
-    });
+    const handleConnect = () => setIsConnected(true);
+    const handleDisconnect = () => setIsConnected(false);
+    const handleGameState = (state: SerializedGameState) => setGameState(state);
 
-    socket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      setIsConnected(false);
-    });
+    socket.on('connect', handleConnect);
+    socket.on('disconnect', handleDisconnect);
+    socket.on('game-state', handleGameState);
+    socket.on('error', (message: string) => console.error('Socket error:', message));
 
-    // Game event handlers
-    socket.on('game-state', (state: SerializedGameState) => {
-      console.log('Game state updated:', state);
-      setGameState(state);
-    });
-
-    socket.on('error', (error: string) => {
-      console.error('Socket error:', error);
-    });
-
-    // Cleanup on unmount
     return () => {
+      socket.off('connect', handleConnect);
+      socket.off('disconnect', handleDisconnect);
+      socket.off('game-state', handleGameState);
       socket.disconnect();
+      socketRef.current = null;
     };
   }, []);
 
-  const joinGame = (playerId: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('join-game', playerId);
-    }
+  const emit = (event: keyof SocketEvents, payload?: unknown) => {
+    if (!socketRef.current) return;
+    socketRef.current.emit(event, payload);
   };
 
-  const joinAsHost = () => {
-    if (socketRef.current) {
-      socketRef.current.emit('host-join');
+  const joinGame = (playerId: string) => emit('join-game', playerId);
+  const joinAsHost = () => emit('host-join');
+  const killPlayer = (murderer: string, victim: string) => emit('kill-attempt', { murderer, victim });
+  const requestGameState = () => emit('request-game-state');
+
+  const registerListener = <Payload>(event: keyof SocketEvents, callback: (payload: Payload) => void): Cleanup => {
+    const socket = socketRef.current;
+    if (!socket) {
+      return () => undefined;
     }
+
+    socket.on(event, callback as (...args: unknown[]) => void);
+    return () => {
+      socket.off(event, callback as (...args: unknown[]) => void);
+    };
   };
 
-  const killPlayer = (murderer: string, victim: string) => {
-    if (socketRef.current) {
-      socketRef.current.emit('kill-attempt', { murderer, victim });
-    }
-  };
-
-  const requestGameState = () => {
-    if (socketRef.current) {
-      socketRef.current.emit('request-game-state');
-    }
-  };
-
-  const onPlayerKilled = (callback: (killEvent: KillEvent) => void) => {
-    if (socketRef.current) {
-      socketRef.current.on('player-killed', callback);
-      return () => socketRef.current?.off('player-killed', callback);
-    }
-    return () => {};
-  };
-
-  const onPlayerJoined = (callback: (player: Player) => void) => {
-    if (socketRef.current) {
-      socketRef.current.on('player-joined', callback);
-      return () => socketRef.current?.off('player-joined', callback);
-    }
-    return () => {};
-  };
-
-  const onGameStarted = (callback: (state: SerializedGameState) => void) => {
-    if (socketRef.current) {
-      socketRef.current.on('game-started', callback);
-      return () => socketRef.current?.off('game-started', callback);
-    }
-    return () => {};
-  };
-
-  const onGameEnded = (callback: (winner: 'murderers' | 'civilians') => void) => {
-    if (socketRef.current) {
-      socketRef.current.on('game-ended', callback);
-      return () => socketRef.current?.off('game-ended', callback);
-    }
-    return () => {};
-  };
-
-  const onKillAttemptResult = (callback: (result: any) => void) => {
-    if (socketRef.current) {
-      socketRef.current.on('kill-attempt-result', callback);
-      return () => socketRef.current?.off('kill-attempt-result', callback);
-    }
-    return () => {};
-  };
+  const onPlayerKilled = (callback: (killEvent: KillEvent) => void) => registerListener('player-killed', callback);
+  const onPlayerJoined = (callback: (player: Player) => void) => registerListener('player-joined', callback);
+  const onGameStarted = (callback: (state: SerializedGameState) => void) =>
+    registerListener('game-started', callback);
+  const onGameEnded = (callback: (winner: 'murderers' | 'civilians') => void) =>
+    registerListener('game-ended', callback);
+  const onKillAttemptResult = (callback: (result: KillAttemptResult) => void) =>
+    registerListener('kill-attempt-result', callback);
 
   return {
     isConnected,

@@ -22,7 +22,7 @@ pnpm run dev
 The server will start at `http://localhost:3000`
 
 ### 2. Host Setup (TV/Computer)
-- Navigate to `http://localhost:3000/game/host`
+- Navigate to `http://localhost:3000/` and choose **Host Game**, or go directly to `http://localhost:3000/game/host`
 - Enter player names (comma-separated)
 - Click "Start Game"
 - Share the generated player links with participants
@@ -122,11 +122,14 @@ ipconfig | findstr "IPv4"
 cms/
 ├── server.js                          # Custom Socket.IO server
 ├── src/
-│   ├── app/(frontend)/game/
-│   │   ├── page.tsx                    # Game landing page
-│   │   ├── host/page.tsx               # Host dashboard
-│   │   └── play/[playerId]/page.tsx    # Player interface
+│   ├── app/(frontend)/
+│   │   ├── page.tsx                    # Root homepage rendering the landing experience
+│   │   └── game/
+│   │       ├── page.tsx                # /game route re-exports the landing
+│   │       ├── host/page.tsx           # Host dashboard
+│   │       └── play/[playerId]/page.tsx# Player interface
 │   ├── components/game/
+│   │   ├── GameLanding.tsx             # Reusable landing component
 │   │   ├── HostDashboard.tsx           # TV display component
 │   │   ├── PlayerView.tsx              # Mobile player interface
 │   │   ├── LiveFeed.tsx                # Real-time kill feed
@@ -142,6 +145,7 @@ cms/
 ```bash
 # .env.local
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
 PORT=3000
 ```
 

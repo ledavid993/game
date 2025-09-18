@@ -1,6 +1,8 @@
-# Payload Blank Template
+# Christmas Murder Mystery Party
 
-This template comes configured with the bare minimum to get started on anything you need.
+This project powers the Christmas party murder mystery game experience built with Next.js + Payload CMS. The public
+homepage (`/`) now launches the festive game landing so hosts and players can jump straight into the TV and mobile
+flows.
 
 ## Quick start
 
@@ -20,7 +22,17 @@ After you click the `Deploy` button above, you'll want to have standalone copy o
 2. `cd my-project && cp .env.example .env` to copy the example environment variables. You'll need to add the `MONGODB_URI` from your Cloud project to your `.env` if you want to use S3 storage and the MongoDB database that was created for you.
 
 3. `pnpm install && pnpm dev` to install dependencies and start the dev server
-4. open `http://localhost:3000` to open the app in your browser
+4. open `http://localhost:3000` to view the game landing page and Payload admin links
+
+### Environment
+
+Add the following to your `.env.local` to ensure socket URLs resolve correctly:
+
+```ini
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+# Set to the externally reachable socket host; defaults to BASE_URL when omitted
+NEXT_PUBLIC_SOCKET_URL=http://localhost:3000
+```
 
 That's it! Changes made in `./src` will be reflected in your app. Follow the on-screen instructions to login and create your first admin user. Then check out [Production](#production) once you're ready to build and serve your app, and [Deployment](#deployment) when you're ready to go live.
 
