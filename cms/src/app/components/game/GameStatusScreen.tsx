@@ -113,108 +113,112 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
 
       <div className="relative z-20 h-full flex flex-col">
         <div className="flex-1 overflow-hidden">
-          <div className="h-full grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 px-6 py-6 overflow-hidden">
-            <div className="flex flex-col gap-6 overflow-hidden">
-              <motion.section
-                initial={{ opacity: 0, x: -25 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.05 }}
-                className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-lg shadow-xl"
-              >
-                <VotingResults gameId={activeState.id} />
-              </motion.section>
+          <div className="h-full flex flex-col gap-6 px-6 py-6 overflow-hidden">
+            {/* Voting Results Section */}
+            <motion.section
+              initial={{ opacity: 0, y: -25 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.05 }}
+              className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-lg shadow-xl flex flex-col overflow-hidden"
+            >
+              <VotingResults gameId={activeState.id} />
+            </motion.section>
+
+            {/* Main Content Grid */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 overflow-hidden">
+              <div className="flex flex-col gap-6 overflow-hidden">
+                <motion.section
+                  initial={{ opacity: 0, x: -25 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-lg shadow-xl"
+                >
+                  <div className="p-5">
+                    <GameStats gameState={activeState} />
+                  </div>
+                </motion.section>
+              </div>
 
               <motion.section
-                initial={{ opacity: 0, x: -25 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="rounded-2xl border border-white/10 bg-black/30 backdrop-blur-lg shadow-xl"
+                initial={{ opacity: 0, y: 25 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+                className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-lg shadow-xl flex flex-col overflow-hidden"
               >
-                <div className="p-5">
-                  <GameStats gameState={activeState} />
+                <div className="border-b border-white/10 px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                  <div>
+                    <h2 className="font-manor text-[clamp(1.2rem,2.1vw,1.6rem)] uppercase tracking-[0.3em] text-manor-candle">
+                      Guest Registry
+                    </h2>
+                    <p className="text-sm text-manor-parchment/70 mt-1">
+                      {totalPlayers} guests · {aliveCount} alive · {deadCount} departed
+                    </p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                    <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
+                      {(['all', 'alive', 'dead'] as const).map((option) => {
+                        const label =
+                          option === 'all'
+                            ? `All (${totalPlayers})`
+                            : option === 'alive'
+                              ? `Alive (${aliveCount})`
+                              : `Departed (${deadCount})`
+                        return (
+                          <button
+                            key={option}
+                            type="button"
+                            onClick={() => setPlayerFilter(option)}
+                            className={`px-3 py-1.5 text-[0.65rem] sm:text-xs font-semibold uppercase tracking-[0.3em] rounded-full transition-colors ${
+                              playerFilter === option
+                                ? 'bg-manor-wine text-manor-candle shadow-inner'
+                                : 'text-manor-parchment/70 hover:text-manor-candle'
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={searchTerm}
+                        onChange={(event) => setSearchTerm(event.target.value)}
+                        placeholder="Search players..."
+                        className="w-full sm:w-56 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-manor-candle placeholder:text-manor-parchment/40 focus:outline-none focus:ring-2 focus:border-manor-wine/40 focus:ring-manor-wine/25"
+                      />
+                      {searchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchTerm('')}
+                          className="absolute right-3 top-2.5 text-manor-parchment/60 hover:text-manor-candle"
+                          aria-label="Clear player search"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto custom-scrollbar">
+                  <PlayerStatusGrid
+                    players={filteredPlayers}
+                    showRoles={activeState.stats.gameEnded}
+                    emptyMessage={
+                      searchTerm
+                        ? `No guests match “${searchTerm}”.`
+                        : playerFilter === 'alive'
+                          ? 'All guests have fallen.'
+                          : playerFilter === 'dead'
+                            ? 'No recorded casualties.'
+                            : 'No guests in the manor.'
+                    }
+                    density={playerDensity}
+                  />
                 </div>
               </motion.section>
             </div>
-
-            <motion.section
-              initial={{ opacity: 0, y: 25 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-              className="rounded-2xl border border-white/10 bg-black/20 backdrop-blur-lg shadow-xl flex flex-col overflow-hidden"
-            >
-              <div className="border-b border-white/10 px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <h2 className="font-manor text-[clamp(1.2rem,2.1vw,1.6rem)] uppercase tracking-[0.3em] text-manor-candle">
-                    Guest Registry
-                  </h2>
-                  <p className="text-sm text-manor-parchment/70 mt-1">
-                    {totalPlayers} guests · {aliveCount} alive · {deadCount} departed
-                  </p>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                  <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
-                    {(['all', 'alive', 'dead'] as const).map((option) => {
-                      const label =
-                        option === 'all'
-                          ? `All (${totalPlayers})`
-                          : option === 'alive'
-                            ? `Alive (${aliveCount})`
-                            : `Departed (${deadCount})`
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setPlayerFilter(option)}
-                          className={`px-3 py-1.5 text-[0.65rem] sm:text-xs font-semibold uppercase tracking-[0.3em] rounded-full transition-colors ${
-                            playerFilter === option
-                              ? 'bg-manor-wine text-manor-candle shadow-inner'
-                              : 'text-manor-parchment/70 hover:text-manor-candle'
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={searchTerm}
-                      onChange={(event) => setSearchTerm(event.target.value)}
-                      placeholder="Search players..."
-                      className="w-full sm:w-56 rounded-lg border border-white/10 bg-white/5 px-4 py-2 text-sm text-manor-candle placeholder:text-manor-parchment/40 focus:outline-none focus:ring-2 focus:border-manor-wine/40 focus:ring-manor-wine/25"
-                    />
-                    {searchTerm && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchTerm('')}
-                        className="absolute right-3 top-2.5 text-manor-parchment/60 hover:text-manor-candle"
-                        aria-label="Clear player search"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <PlayerStatusGrid
-                  players={filteredPlayers}
-                  showRoles={activeState.stats.gameEnded}
-                  emptyMessage={
-                    searchTerm
-                      ? `No guests match “${searchTerm}”.`
-                      : playerFilter === 'alive'
-                        ? 'All guests have fallen.'
-                        : playerFilter === 'dead'
-                          ? 'No recorded casualties.'
-                          : 'No guests in the manor.'
-                  }
-                  density={playerDensity}
-                />
-              </div>
-            </motion.section>
           </div>
         </div>
       </div>

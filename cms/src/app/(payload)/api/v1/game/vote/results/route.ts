@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayloadClient } from '@/lib/game/payloadGameService'
-import type { Game, Vote, GamePlayer } from '@/payload-types'
+import type { Game, Vote, GamePlayer, PlayerRegistry } from '@/payload-types'
 
 const SINGLE_GAME_CODE = 'GAME_MAIN'
 
@@ -49,10 +49,31 @@ export async function GET(request: NextRequest) {
             const targetPlayer = await payload.findByID({
               collection: 'game-players',
               id: targetPlayerId,
-              depth: 0,
+              depth: 1, // Include player relationship
             }) as GamePlayer
 
-            targetName = targetPlayer.displayName || targetPlayer.playerCode || 'Unknown Player'
+            // Get the display name from player registry
+            if (targetPlayer.player) {
+              const registryPlayerId = typeof targetPlayer.player === 'string'
+                ? targetPlayer.player
+                : targetPlayer.player.id
+
+              try {
+                const registryPlayer = await payload.findByID({
+                  collection: 'player-registry',
+                  id: registryPlayerId,
+                  depth: 0,
+                }) as PlayerRegistry
+
+                targetName = registryPlayer.displayName || targetPlayer.playerCode || 'Unknown Player'
+              } catch (registryError) {
+                console.warn('Failed to get player registry details:', registryError)
+                targetName = targetPlayer.displayName || targetPlayer.playerCode || 'Unknown Player'
+              }
+            } else {
+              targetName = targetPlayer.displayName || targetPlayer.playerCode || 'Unknown Player'
+            }
+
             targetId = targetPlayer.playerCode || targetPlayerId
           } catch (error) {
             console.warn('Failed to get target player details:', error)

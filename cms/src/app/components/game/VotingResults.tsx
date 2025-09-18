@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 
 interface VoteResult {
@@ -13,56 +13,139 @@ interface VotingResultsProps {
   gameId?: string
 }
 
-export function VotingResults({ gameId }: VotingResultsProps) {
+// Optimized player card component
+const PlayerVoteCard = React.memo<{
+  vote: VoteResult
+  index: number
+  isTopVoted: boolean
+}>(({ vote, index, isTopVoted }) => {
+  const getRankIcon = () => {
+    if (index === 0) return '👑'
+    if (index === 1) return '🥈'
+    if (index === 2) return '🥉'
+    return `#${index + 1}`
+  }
+
+  const getBadgeStyle = () => {
+    if (index === 0) return 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50'
+    if (index === 1) return 'bg-gray-400/20 text-gray-300 border-gray-400/50'
+    if (index === 2) return 'bg-amber-600/20 text-amber-400 border-amber-600/50'
+    return 'bg-manor-wine/20 text-manor-wine border-manor-wine/50'
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
+      className="relative"
+    >
+      <div
+        className={`
+        relative rounded-lg border bg-black/30 backdrop-blur-sm p-3 transition-all hover:bg-black/40
+        ${isTopVoted ? 'border-yellow-500/30 shadow-lg shadow-yellow-500/10' : 'border-white/10'}
+      `}
+      >
+        {/* Vote Count Badge */}
+        <div
+          className={`
+          absolute -top-1 -right-1 w-6 h-6 rounded-full border flex items-center justify-center
+          font-bold text-xs shadow-md ${getBadgeStyle()}
+        `}
+        >
+          {vote.count}
+        </div>
+
+        {/* Rank Icon */}
+        <div className="flex items-center justify-center w-8 h-8 mx-auto mb-2 rounded-full bg-white/5 border border-white/10">
+          <span className="text-sm">{getRankIcon()}</span>
+        </div>
+
+        {/* Player Info */}
+        <div className="text-center">
+          <h3 className="font-manor text-xs uppercase tracking-[0.15em] text-manor-candle truncate mb-1">
+            {vote.targetName}
+          </h3>
+          <p className="text-xs text-manor-parchment/80 font-medium">
+            {vote.count} vote{vote.count !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* Top voted glow effect */}
+        {isTopVoted && (
+          <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-yellow-400/5 to-transparent pointer-events-none" />
+        )}
+      </div>
+    </motion.div>
+  )
+})
+
+PlayerVoteCard.displayName = 'PlayerVoteCard'
+
+export const VotingResults = React.memo<VotingResultsProps>(({ gameId }) => {
   const [votes, setVotes] = useState<VoteResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const previousVotesRef = useRef<string>('')
+
+  const fetchVotes = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/game/vote/results?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch voting results')
+      }
+
+      const data = await response.json()
+      if (data.success) {
+        const newVotes = data.votes || []
+        const newVotesString = JSON.stringify(newVotes)
+
+        // Only update state if votes actually changed
+        if (newVotesString !== previousVotesRef.current) {
+          setVotes(newVotes)
+          previousVotesRef.current = newVotesString
+        }
+        setError(null)
+      } else {
+        setError(data.error || 'Failed to load votes')
+      }
+    } catch (err) {
+      console.error('Error fetching votes:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load votes')
+      setVotes([])
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const fetchVotes = async () => {
-      try {
-        setIsLoading(true)
-        const response = await fetch(`/api/v1/game/vote/results?_t=${Date.now()}`, {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
-          },
-        })
-
-        if (!response.ok) {
-          throw new Error('Failed to fetch voting results')
-        }
-
-        const data = await response.json()
-        if (data.success) {
-          setVotes(data.votes || [])
-          setError(null)
-        } else {
-          setError(data.error || 'Failed to load votes')
-        }
-      } catch (err) {
-        console.error('Error fetching votes:', err)
-        setError(err instanceof Error ? err.message : 'Failed to load votes')
-        setVotes([])
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
     fetchVotes()
 
     // Poll for updates every 5 seconds
     const interval = setInterval(fetchVotes, 5000)
     return () => clearInterval(interval)
-  }, [gameId])
+  }, [fetchVotes, gameId])
+
+  // Memoized calculations to prevent unnecessary re-computations
+  const sortedVotes = useMemo(() => [...votes].sort((a, b) => b.count - a.count), [votes])
+
+  const totalVotes = useMemo(() => votes.reduce((sum, vote) => sum + vote.count, 0), [votes])
+
+  const maxVotes = useMemo(() => sortedVotes[0]?.count || 0, [sortedVotes])
 
   if (isLoading) {
     return (
-      <div className="p-5 text-center">
+      <div className="border-b border-white/10 px-6 py-5">
         <div className="animate-pulse">
-          <div className="h-4 bg-white/10 rounded w-24 mx-auto mb-2"></div>
-          <div className="h-3 bg-white/5 rounded w-32 mx-auto"></div>
+          <div className="h-5 bg-white/10 rounded w-32 mb-2"></div>
+          <div className="h-3 bg-white/5 rounded w-48"></div>
         </div>
       </div>
     )
@@ -70,7 +153,7 @@ export function VotingResults({ gameId }: VotingResultsProps) {
 
   if (error) {
     return (
-      <div className="p-5 text-center text-manor-parchment/60">
+      <div className="border-b border-white/10 px-6 py-5 text-center text-manor-parchment/60">
         <p className="text-sm">Unable to load voting results</p>
         <p className="text-xs mt-1">{error}</p>
       </div>
@@ -79,105 +162,61 @@ export function VotingResults({ gameId }: VotingResultsProps) {
 
   if (votes.length === 0) {
     return (
-      <div className="p-5 text-center text-manor-parchment/60">
-        <div className="text-2xl mb-2">🗳️</div>
-        <p className="font-manor text-sm uppercase tracking-[0.25em] text-manor-parchment/70">
-          No Votes Cast
-        </p>
-        <p className="text-xs mt-1 text-manor-parchment/50">
-          Voting results will appear here once votes are recorded
-        </p>
-      </div>
+      <>
+        {/* Header Section */}
+        <div className="border-b border-white/10 px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h2 className="font-manor text-[clamp(1.2rem,2.1vw,1.6rem)] uppercase tracking-[0.3em] text-manor-candle">
+              Voting Chamber
+            </h2>
+            <p className="text-sm text-manor-parchment/70 mt-1">
+              No votes cast · Awaiting participation
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="px-3 py-1.5 rounded-full border border-manor-wine/30 bg-manor-wine/10">
+              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-manor-wine">
+                Live Results
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Empty State */}
+        <div className="flex-1 flex items-center justify-center p-8 text-center text-manor-parchment/60">
+          <div>
+            <div className="text-4xl mb-4">🗳️</div>
+            <p className="font-manor text-sm uppercase tracking-[0.25em] text-manor-parchment/70">
+              No Votes Cast
+            </p>
+            <p className="text-xs mt-2 text-manor-parchment/50">
+              Voting results will appear here once votes are recorded
+            </p>
+          </div>
+        </div>
+      </>
     )
   }
 
-  // Sort votes by count (highest first)
-  const sortedVotes = [...votes].sort((a, b) => b.count - a.count)
-  const maxVotes = sortedVotes[0]?.count || 0
-
   return (
-    <div className="p-5">
-      <div className="mb-4">
-        <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-manor-candle mb-1">
-          Voting Results
-        </h3>
-        <p className="text-xs text-manor-parchment/60">
-          {votes.length} player{votes.length !== 1 ? 's' : ''} received votes
-        </p>
+    <>
+      {/* Voting Results Grid */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="p-6">
+          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-3">
+            {sortedVotes.map((vote, index) => (
+              <PlayerVoteCard
+                key={vote.targetId}
+                vote={vote}
+                index={index}
+                isTopVoted={index === 0 && vote.count > 0}
+              />
+            ))}
+          </div>
+        </div>
       </div>
-
-      <div className="space-y-3">
-        {sortedVotes.map((vote, index) => (
-          <motion.div
-            key={vote.targetId}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="relative"
-          >
-            <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-black/20">
-              <div className="flex items-center gap-3">
-                <div className={`
-                  flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold
-                  ${index === 0
-                    ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30'
-                    : index === 1
-                    ? 'bg-gray-500/20 text-gray-300 border border-gray-500/30'
-                    : index === 2
-                    ? 'bg-amber-700/20 text-amber-400 border border-amber-700/30'
-                    : 'bg-white/10 text-manor-parchment/70 border border-white/10'
-                  }
-                `}>
-                  {index === 0 ? '👑' : index + 1}
-                </div>
-                <div>
-                  <p className="font-manor text-sm uppercase tracking-[0.2em] text-manor-candle">
-                    {vote.targetName}
-                  </p>
-                  <p className="text-xs text-manor-parchment/60">
-                    ID: {vote.targetId}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="font-bold text-manor-candle text-lg">
-                    {vote.count}
-                  </p>
-                  <p className="text-xs text-manor-parchment/60">
-                    vote{vote.count !== 1 ? 's' : ''}
-                  </p>
-                </div>
-
-                {/* Vote bar */}
-                <div className="w-16 h-2 bg-white/10 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${maxVotes > 0 ? (vote.count / maxVotes) * 100 : 0}%` }}
-                    transition={{ delay: index * 0.1 + 0.2, duration: 0.5 }}
-                    className={`h-full rounded-full ${
-                      index === 0
-                        ? 'bg-yellow-400'
-                        : index === 1
-                        ? 'bg-gray-400'
-                        : index === 2
-                        ? 'bg-amber-600'
-                        : 'bg-manor-wine'
-                    }`}
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-
-      <div className="mt-4 pt-3 border-t border-white/10 text-center">
-        <p className="text-xs text-manor-parchment/50 uppercase tracking-[0.25em]">
-          Total Votes: {votes.reduce((sum, vote) => sum + vote.count, 0)}
-        </p>
-      </div>
-    </div>
+    </>
   )
-}
+})
+
+VotingResults.displayName = 'VotingResults'
