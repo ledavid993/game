@@ -53,7 +53,6 @@ export async function GET(request: NextRequest) {
           // Handle host joining
           socket.on('host-join', () => {
             try {
-              console.log('Host joined')
               socket.join('game-room')
               socket.join('host-room')
 

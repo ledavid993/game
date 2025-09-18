@@ -1,10 +1,27 @@
 import React from 'react'
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
+import { Cinzel, IM_Fell_English, Lato } from 'next/font/google'
 
-import '@/app/globals.css'
+import '../../styles/global.css'
 
-const inter = Inter({ subsets: ['latin'], display: 'swap', variable: '--font-inter' })
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-cinzel',
+  weight: ['400', '600', '700'],
+})
+const fellEnglish = IM_Fell_English({
+  subsets: ['latin'],
+  weight: ['400'],
+  display: 'swap',
+  variable: '--font-fell',
+})
+const lato = Lato({
+  subsets: ['latin'],
+  weight: ['300', '400', '700'],
+  display: 'swap',
+  variable: '--font-lato',
+})
 
 const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
 const metadataBase = (() => {
@@ -19,11 +36,11 @@ const metadataBase = (() => {
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: 'Christmas Murder Mystery Party',
-    template: '%s | Christmas Murder Mystery Party',
+    default: 'Manor of Whispers',
+    template: '%s | Manor of Whispers',
   },
   description:
-    'Host the ultimate holiday murder mystery with responsive TV and mobile experiences, live updates, and festive themes.',
+    'Invite your guests into the Manor of Whispers—an immersive murder mystery with theatrical visuals and cross-device gameplay.',
   manifest: '/manifest.webmanifest',
   icons: {
     icon: '/favicon.svg',
@@ -32,23 +49,23 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Christmas Murder Mystery Party',
+    title: 'Manor of Whispers',
   },
   formatDetection: {
     telephone: false,
   },
   openGraph: {
-    title: 'Christmas Murder Mystery Party',
+    title: 'Manor of Whispers',
     description:
-      'Host and play a real-time holiday murder mystery with socket-powered updates, QR joins, and immersive themes.',
+      'A real-time murder mystery experience styled as a haunted manor, complete with live updates and cinematic storytelling.',
     url: '/',
     siteName: 'Christmas Murder Mystery Party',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Christmas Murder Mystery Party',
+    title: 'Manor of Whispers',
     description:
-      'Real-time Christmas party murder mystery built for TV hosts and mobile players with festive theming.',
+      'A web-novel inspired murder house game designed for large displays and mobile accomplices.',
   },
 }
 
@@ -60,11 +77,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body
-        className={`${inter.className} bg-[var(--color-background)] text-[var(--color-text)] antialiased`}
-        data-theme="christmas"
-      >
+    <html lang="en" className={`${cinzel.variable} ${fellEnglish.variable} ${lato.variable}`}>
+      <body className="font-body bg-[var(--manor-midnight)] text-[var(--manor-candle)] antialiased">
         <main className="flex min-h-screen flex-col">{children}</main>
       </body>
     </html>

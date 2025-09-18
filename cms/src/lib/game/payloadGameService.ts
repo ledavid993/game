@@ -11,7 +11,7 @@ import type {
   KillEvent,
   Player,
   SerializedGameState,
-} from '@/lib/game/types';
+} from '@/app/lib/game/types';
 
 interface StartGameOptions {
   playerNames: string[];

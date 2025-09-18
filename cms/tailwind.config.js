@@ -21,6 +21,19 @@ export default {
         murderer: '#dc2626',
         civilian: '#16a34a',
         dead: '#6b7280',
+        manor: {
+          midnight: '#0b0f16',
+          wine: '#4b1126',
+          ember: '#b1361e',
+          candle: '#f7d7a1',
+          parchment: '#d8c7a1',
+          moss: '#3f4f44',
+        },
+      },
+      fontFamily: {
+        manor: ['var(--font-cinzel)', 'serif'],
+        gothic: ['var(--font-fell)', 'serif'],
+        body: ['var(--font-lato)', 'sans-serif'],
       },
       animation: {
         'snowfall': 'snowfall 10s linear infinite',

@@ -1,12 +1,23 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { useSocket } from './useSocket'
+import { motion, type Variants } from 'framer-motion'
+import toast from 'react-hot-toast'
+
 import { LiveFeed } from './LiveFeed'
 import { PlayerGrid } from './PlayerGrid'
-import { SerializedGameState, StartGameRequest } from '@/lib/game/types'
-import toast from 'react-hot-toast'
+import { useSocket } from './useSocket'
+import type {
+  KillEvent,
+  Player,
+  SerializedGameState,
+  StartGameRequest,
+} from '@/app/lib/game/types'
+
+const sectionVariants: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0 },
+}
 
 interface HostDashboardProps {
   className?: string
@@ -23,44 +34,43 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     onGameEnded,
   } = useSocket()
 
-  const [playerNames, setPlayerNames] = useState<string>('')
+  const [playerNames, setPlayerNames] = useState('')
   const [isStartingGame, setIsStartingGame] = useState(false)
   const [playerLinks, setPlayerLinks] = useState<Record<string, string>>({})
   const [showQRCodes, setShowQRCodes] = useState(false)
   const [gameCode, setGameCode] = useState<string | null>(null)
 
   useEffect(() => {
-    // Join as host when connected and a game is active
-    if (isConnected && gameCode) {
-      joinAsHost(gameCode)
+    if (isConnected) {
+      joinAsHost()
     }
-  }, [isConnected, joinAsHost, gameCode])
+  }, [isConnected, joinAsHost])
 
   useEffect(() => {
-    // Set up event listeners
-    const cleanupKilled = onPlayerKilled((killEvent) => {
+    const cleanupKilled = onPlayerKilled((killEvent: KillEvent) => {
       toast.error(`💀 ${killEvent.message}`, {
         duration: 4000,
         position: 'top-right',
       })
     })
 
-    const cleanupJoined = onPlayerJoined((player) => {
-      toast.success(`👥 ${player.name} joined the game!`, {
-        duration: 3000,
+    const cleanupJoined = onPlayerJoined((player: Player) => {
+      toast.success(`👥 ${player.name} joined the manor.`, {
+        duration: 3200,
         position: 'top-right',
       })
     })
 
-    const cleanupStarted = onGameStarted((state) => {
-      toast.success('🎉 Game started!', {
+    const cleanupStarted = onGameStarted((state: SerializedGameState) => {
+      toast.success('🎭 The performance begins.', {
         duration: 3000,
         position: 'top-right',
       })
+      setGameCode(state.id)
     })
 
-    const cleanupEnded = onGameEnded((winner) => {
-      toast.success(`🎉 ${winner.toUpperCase()} WIN!`, {
+    const cleanupEnded = onGameEnded((winner: 'murderers' | 'civilians') => {
+      toast.success(`🎉 ${winner.toUpperCase()} CLAIM VICTORY`, {
         duration: 6000,
         position: 'top-center',
       })
@@ -81,7 +91,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       .filter((name) => name.length > 0)
 
     if (names.length < 3) {
-      toast.error('At least 3 players are required!')
+      toast.error('At least three guests must enter the manor to begin.')
       return
     }
 
@@ -112,13 +122,13 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         if (data.game?.id) {
           setGameCode(data.game.id)
         }
-        toast.success('Game started successfully!')
+        toast.success('Guest invitations prepared.')
       } else {
-        throw new Error(data.error || 'Failed to start game')
+        throw new Error(data.error || 'Failed to kindle the manor.')
       }
     } catch (error: any) {
       console.error('Error starting game:', error)
-      toast.error(error.message || 'Failed to start game')
+      toast.error(error.message || 'Failed to kindle the manor.')
     } finally {
       setIsStartingGame(false)
     }
@@ -127,7 +137,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const handleResetGame = async () => {
     try {
       if (!gameCode) {
-        toast.error('No active game to reset')
+        toast.error('No active session to dismiss.')
         return
       }
 
@@ -139,7 +149,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         setPlayerNames('')
         setPlayerLinks({})
         setGameCode(null)
-        toast.success('Game reset successfully!')
+        toast.success('The manor falls silent once more.')
       } else {
         throw new Error('Failed to reset game')
       }
@@ -153,206 +163,173 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     const link = playerLinks[playerCode]
     if (link) {
       navigator.clipboard.writeText(link)
-      toast.success(`Link copied for ${playerName}!`)
+      toast.success(`Invitation copied for ${playerName}!`)
     }
   }
 
-  const getLocalIP = () => {
-    // This is a placeholder - in a real app you'd get the actual local IP
-    return window.location.hostname
-  }
-
   return (
-    <div
-      className={`min-h-screen bg-gradient-to-br from-red-900 via-green-900 to-red-900 ${className}`}
-    >
-      {/* Background decoration */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="snowfall">
-          {Array.from({ length: 50 }).map((_, i) => (
-            <div
-              key={i}
-              className="snowflake"
-              style={{
-                left: `${Math.random() * 100}%`,
-                animationDelay: `${Math.random() * 10}s`,
-                fontSize: `${Math.random() * 0.8 + 0.8}rem`,
-              }}
-            >
-              ❄
-            </div>
-          ))}
-        </div>
+    <div className={`relative min-h-screen overflow-hidden ${className}`}>
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(177,54,30,0.18),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(64,19,31,0.28),transparent_55%),linear-gradient(170deg,rgba(9,11,16,0.95)_0%,rgba(16,19,27,0.92)_40%,rgba(6,7,10,0.98)_100%)]" />
+      <div className="absolute inset-0 opacity-10" aria-hidden>
+        <div className="h-full w-full bg-[url('https://www.transparenttextures.com/patterns/black-paper.png')]" />
       </div>
 
-      <div className="relative z-10 p-6">
-        {/* Header */}
+      <div className="relative z-10 space-y-10 p-6 md:p-10">
         <motion.header
-          initial={{ opacity: 0, y: -50 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+          initial="hidden"
+          animate="visible"
+          variants={sectionVariants}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="mx-auto flex max-w-6xl flex-col gap-6 text-center"
         >
-          <h1 className="text-6xl font-bold text-white mb-4 tv-display">
-            🎄 Christmas Murder Mystery 🔪
-          </h1>
-          <div className="flex items-center justify-center gap-4 text-white">
-            <div
-              className={`flex items-center gap-2 ${isConnected ? 'text-green-400' : 'text-red-400'}`}
-            >
-              <div
-                className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}
-              />
-              <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
-            </div>
+          <div className="flex flex-col items-center gap-3">
+            <p className="font-body text-xs uppercase tracking-[0.45em] text-manor-parchment/60">
+              The Ballroom Awaits
+            </p>
+            <h1 className="font-manor text-4xl uppercase tracking-[0.28em] text-manor-candle md:text-5xl">
+              Host Control Theatre
+            </h1>
+          </div>
+          <div className="mx-auto flex flex-wrap items-center justify-center gap-4 font-body text-sm text-manor-parchment/75 md:text-base">
+            <span className={`flex items-center gap-2 ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
+              <span className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-500'}`} />
+              {isConnected ? 'Manor link established' : 'Attempting to reach the manor...'}
+            </span>
             {gameState?.isActive && (
-              <div className="text-yellow-400">
-                🎮 Game Active - {gameState.stats.alivePlayers} alive
-              </div>
+              <span className="rounded-full border border-manor-ember/40 px-3 py-1 text-manor-candle/90">
+                Game Active · {gameState.stats.alivePlayers} guests breathing
+              </span>
             )}
+            {!gameState?.isActive && <span>Stage a séance to begin the experience.</span>}
           </div>
         </motion.header>
 
-        {/* Game Setup */}
         {!gameState?.isActive && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto mb-8"
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            variants={sectionVariants}
+            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
+            className="mx-auto w-full max-w-5xl"
           >
-            <div className="glass p-8 rounded-xl">
-              <h2 className="text-3xl font-bold text-white mb-6 text-center">🎮 Start New Game</h2>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-white text-lg font-semibold mb-2">
-                    Player Names (comma separated):
-                  </label>
-                  <textarea
-                    value={playerNames}
-                    onChange={(e) => setPlayerNames(e.target.value)}
-                    placeholder="Alice, Bob, Charlie, Diana, Eve..."
-                    className="w-full p-4 text-lg rounded-lg bg-white bg-opacity-10 text-white placeholder-gray-300 border border-white border-opacity-20 focus:border-white focus:border-opacity-40 focus:outline-none"
-                    rows={3}
-                  />
-                  <p className="text-sm text-gray-300 mt-1">
-                    Minimum 3 players required. 2 will be randomly assigned as murderers.
-                  </p>
-                </div>
-
+            <div className="manor-card manor-card--accent space-y-6">
+              <div className="text-center">
+                <h2 className="font-manor text-2xl uppercase tracking-[0.25em] text-manor-candle">
+                  Compose Your Guest Ledger
+                </h2>
+                <p className="mt-2 font-body text-sm text-manor-parchment/80 md:text-base">
+                  Whisper names separated by commas. The manor insists on at least three souls before the game can stir.
+                </p>
+              </div>
+              <textarea
+                value={playerNames}
+                onChange={(event) => setPlayerNames(event.target.value)}
+                placeholder="Eleanor Glass, Victor North, Adelaide Finch, Henry Wolfe"
+                className="h-32 w-full rounded-xl border border-white/10 bg-manor-shadow/60 p-4 font-body text-sm text-manor-candle/85 placeholder:text-manor-parchment/40 focus:border-manor-ember/40 focus:outline-none focus:ring-2 focus:ring-manor-ember/30 md:text-base"
+              />
+              <div className="manor-divider" />
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <button
+                  className={`btn-primary w-full md:w-auto ${isStartingGame ? 'cursor-not-allowed opacity-70' : ''}`}
                   onClick={handleStartGame}
-                  disabled={isStartingGame || !playerNames.trim()}
-                  className="w-full btn-primary text-xl py-4 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isStartingGame}
                 >
-                  {isStartingGame ? 'Starting Game...' : '🎯 Start Game'}
+                  {isStartingGame ? 'Preparing the Estate...' : 'Invite Guests In'}
                 </button>
+                <p className="font-body text-xs uppercase tracking-[0.3em] text-manor-parchment/60">
+                  Links appear below once the manor doors open.
+                </p>
               </div>
             </div>
-          </motion.div>
+          </motion.section>
         )}
 
-        {/* Player Links */}
         {Object.keys(playerLinks).length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-6xl mx-auto mb-8"
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            variants={sectionVariants}
+            transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
+            className="mx-auto w-full max-w-5xl"
           >
-            <div className="glass p-6 rounded-xl">
-              <h3 className="text-2xl font-bold text-white mb-4 text-center">📱 Player Links</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {gameState?.players.map((player) => (
-                  <div
-                    key={player.id}
-                    className="bg-white bg-opacity-10 p-4 rounded-lg border border-white border-opacity-20"
-                  >
+            <div className="manor-card space-y-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-manor-candle">
+                  Personalised Keys
+                </h3>
+                <button className="btn-secondary w-full md:w-auto" onClick={() => setShowQRCodes((prev) => !prev)}>
+                  {showQRCodes ? 'Conceal QR Sigils' : 'Reveal QR Sigils'}
+                </button>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {Object.entries(playerLinks).map(([playerId, link]) => (
+                  <div key={playerId} className="rounded-2xl border border-white/10 bg-black/20 p-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-white font-semibold">{player.name}</span>
+                      <p className="font-body text-sm uppercase tracking-[0.3em] text-manor-candle/80">{playerId}</p>
                       <button
-                        onClick={() => copyPlayerLink(player.id, player.name)}
-                        className="text-xs bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded"
+                        className="text-xs text-manor-parchment/70 transition hover:text-manor-candle"
+                        onClick={() => copyPlayerLink(playerId, playerId)}
                       >
-                        Copy Link
+                        Copy link
                       </button>
                     </div>
-                    <div className="text-xs text-gray-300 mt-1 break-all">
-                      {playerLinks[player.id]}
-                    </div>
+                    <p className="mt-2 break-words font-body text-xs text-manor-parchment/60">{link}</p>
+                    {showQRCodes && (
+                      <div className="mt-4 flex justify-center">
+                        <div className="flex h-32 w-32 items-center justify-center rounded-lg border border-manor-ember/40 bg-white/95 text-xs font-semibold text-manor-wine">
+                          QR CODE
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
-              <p className="text-center text-gray-300 text-sm mt-4">
-                Share these links with players so they can join on their phones
-              </p>
             </div>
-          </motion.div>
+          </motion.section>
         )}
 
-        {/* Main Dashboard */}
-        {gameState && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-            {/* Players Panel */}
-            <motion.div
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="lg:col-span-2"
-            >
-              <div className="glass p-6 rounded-xl h-full">
-                <div className="flex items-center justify-between mb-6">
-                  <h2 className="text-3xl font-bold text-white">
-                    👥 Players ({gameState.stats.alivePlayers}/{gameState.stats.totalPlayers})
-                  </h2>
-                  <div className="text-white text-right">
-                    <div className="text-lg">🔪 {gameState.stats.murderers} murderers</div>
-                    <div className="text-lg">🧑‍🎄 {gameState.stats.civilians} civilians</div>
-                  </div>
+        {gameState?.isActive && (
+          <motion.section
+            initial="hidden"
+            animate="visible"
+            variants={sectionVariants}
+            transition={{ delay: 0.6, duration: 0.6, ease: 'easeOut' }}
+            className="mx-auto w-full max-w-6xl space-y-6"
+          >
+            <div className="manor-card manor-card--accent flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div className="space-y-2">
+                <h3 className="font-manor text-xl uppercase tracking-[0.25em] text-manor-candle">
+                  Real-Time Chronicle
+                </h3>
+                <p className="font-body text-sm text-manor-parchment/80 md:text-base">
+                  Track allegiances, watch the incident ledger flicker, and keep your living guests calm while the manor whispers in their ears.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 text-right">
+                <div className="font-body text-sm text-manor-parchment/70">
+                  <p>Total Guests: {gameState.stats.totalPlayers}</p>
+                  <p>Alive: {gameState.stats.alivePlayers}</p>
+                  <p>Departed: {gameState.stats.deadPlayers}</p>
                 </div>
+                <button className="btn-danger" onClick={handleResetGame}>
+                  Close the Manor
+                </button>
+              </div>
+            </div>
 
-                <PlayerGrid
-                  players={gameState.players}
-                  showRoles={true}
-                  className="h-96 overflow-y-auto"
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr]">
+              <div className="manor-card">
+                <PlayerGrid players={gameState.players as SerializedGameState['players']} />
+              </div>
+              <div className="manor-card">
+                <LiveFeed
+                  killEvents={gameState.killEvents}
+                  onPlayerKilled={() => undefined}
+                  className="bg-transparent"
                 />
               </div>
-            </motion.div>
-
-            {/* Live Feed */}
-            <motion.div
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="lg:col-span-1"
-            >
-              <LiveFeed killEvents={gameState.killEvents} className="h-full" />
-            </motion.div>
-          </div>
-        )}
-
-        {/* Game Controls */}
-        {gameState && (
-          <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="max-w-4xl mx-auto mt-8"
-          >
-            <div className="glass p-6 rounded-xl">
-              <div className="flex justify-center gap-4">
-                <button onClick={handleResetGame} className="btn-danger">
-                  🔄 Reset Game
-                </button>
-                {!gameState.isActive && gameState.endTime && (
-                  <button
-                    onClick={() => {
-                      setPlayerNames('')
-                      setPlayerLinks({})
-                    }}
-                    className="btn-secondary"
-                  >
-                    🎮 New Game
-                  </button>
-                )}
-              </div>
             </div>
-          </motion.div>
+          </motion.section>
         )}
       </div>
     </div>

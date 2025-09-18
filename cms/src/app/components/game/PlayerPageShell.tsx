@@ -1,13 +1,13 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { Toaster } from 'react-hot-toast';
+import React from 'react'
+import { Toaster } from 'react-hot-toast'
 
-import { PlayerView } from '@/components/game/PlayerView';
-import { ThemeToggle } from '@/components/game/ThemeToggle';
+import { PlayerView } from '@/app/components/game/PlayerView'
+import { ThemeToggle } from './ThemeToggle'
 
 interface PlayerPageShellProps {
-  playerId: string;
+  playerId: string
 }
 
 export function PlayerPageShell({ playerId }: PlayerPageShellProps) {
@@ -54,5 +54,5 @@ export function PlayerPageShell({ playerId }: PlayerPageShellProps) {
         }}
       />
     </>
-  );
+  )
 }
