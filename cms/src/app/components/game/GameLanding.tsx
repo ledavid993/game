@@ -1,23 +1,22 @@
-'use client';
+'use client'
 
-import React from 'react';
-import Link from 'next/link';
-import { motion } from 'framer-motion';
+import React from 'react'
+import Link from 'next/link'
+import { motion } from 'framer-motion'
+import { ThemeToggle } from './ThemeToggle'
 
-import { ThemeToggle } from '@/components/game/ThemeToggle';
-
-const SNOWFLAKE_COUNT = 50;
+const SNOWFLAKE_COUNT = 50
 
 function getSnowflakeStyle(index: number) {
-  const left = (index * 37) % 100;
-  const delay = (index * 83) % 1000; // hundredths of a second
-  const size = 0.8 + ((index * 29) % 80) / 100;
+  const left = (index * 37) % 100
+  const delay = (index * 83) % 1000 // hundredths of a second
+  const size = 0.8 + ((index * 29) % 80) / 100
 
   return {
     left: `${left}%`,
     animationDelay: `${delay / 100}s`,
     fontSize: `${size}rem`,
-  } as const;
+  } as const
 }
 
 export function GameLanding() {
@@ -53,8 +52,8 @@ export function GameLanding() {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="mx-auto max-w-3xl text-lg text-white/90 md:text-2xl"
           >
-            A thrilling party game where players must survive the night while murderers strike from the shadows. Perfect
-            for your Christmas party!
+            A thrilling party game where players must survive the night while murderers strike from
+            the shadows. Perfect for your Christmas party!
           </motion.p>
         </motion.div>
 
@@ -70,9 +69,13 @@ export function GameLanding() {
               whileTap={{ scale: 0.97 }}
               className="glass group flex h-full flex-col items-center gap-4 p-8 text-center transition-all duration-300 hover:bg-white/10"
             >
-              <div className="text-5xl transition-transform duration-300 group-hover:scale-110 md:text-6xl">📺</div>
+              <div className="text-5xl transition-transform duration-300 group-hover:scale-110 md:text-6xl">
+                📺
+              </div>
               <h2 className="text-2xl font-semibold text-white md:text-3xl">Host Game</h2>
-              <p className="text-sm text-white/80 md:text-base">Set up and control the game from your computer or TV.</p>
+              <p className="text-sm text-white/80 md:text-base">
+                Set up and control the game from your computer or TV.
+              </p>
             </motion.div>
           </Link>
 
@@ -84,7 +87,9 @@ export function GameLanding() {
           >
             <div className="text-5xl md:text-6xl">📱</div>
             <h2 className="text-2xl font-semibold text-white md:text-3xl">Join Game</h2>
-            <p className="text-sm text-white/80 md:text-base">Scan the QR code or open the link shared by your host.</p>
+            <p className="text-sm text-white/80 md:text-base">
+              Scan the QR code or open the link shared by your host.
+            </p>
             <div className="rounded-lg bg-yellow-900/30 p-3 text-sm text-yellow-300">
               💡 Best on your phone&apos;s browser
             </div>
@@ -117,7 +122,8 @@ export function GameLanding() {
               <div className="text-4xl">🎉</div>
               <h4 className="text-xl font-semibold text-white">3. Victory</h4>
               <p className="text-sm text-white/80">
-                Murderers win when they equal civilians. Civilians win when all murderers are caught.
+                Murderers win when they equal civilians. Civilians win when all murderers are
+                caught.
               </p>
             </article>
           </div>
@@ -143,7 +149,7 @@ export function GameLanding() {
         </motion.section>
       </div>
     </div>
-  );
+  )
 }
 
-export default GameLanding;
+export default GameLanding

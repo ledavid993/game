@@ -1,5 +1,5 @@
-import GameLanding from '@/components/game/GameLanding';
+import GameLanding from '@/app/components/game/GameLanding'
 
 export default function GameLandingPage() {
-  return <GameLanding />;
+  return <GameLanding />
 }
