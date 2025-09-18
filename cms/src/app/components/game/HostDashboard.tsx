@@ -39,6 +39,17 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const [playerLinks, setPlayerLinks] = useState<Record<string, string>>({})
   const [showQRCodes, setShowQRCodes] = useState(false)
   const [gameCode, setGameCode] = useState<string | null>(null)
+  const [currentState, setCurrentState] = useState<SerializedGameState | null>(null)
+
+  const buildLinksFromState = (state: SerializedGameState) => {
+    if (typeof window === 'undefined') return {}
+    const origin = window.location.origin.replace(/\/$/, '')
+    const links: Record<string, string> = {}
+    state.players.forEach((player) => {
+      links[player.id] = `${origin}/game/play/${player.id}`
+    })
+    return links
+  }
 
   useEffect(() => {
     if (isConnected) {
@@ -67,6 +78,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         position: 'top-right',
       })
       setGameCode(state.id)
+      setCurrentState(state)
     })
 
     const cleanupEnded = onGameEnded((winner: 'murderers' | 'civilians') => {
@@ -83,6 +95,42 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       cleanupEnded()
     }
   }, [onPlayerKilled, onPlayerJoined, onGameStarted, onGameEnded])
+
+  useEffect(() => {
+    const fetchExistingState = async () => {
+      try {
+        const response = await fetch('/api/v1/game/state', { cache: 'no-store' })
+        const data = await response.json()
+        if (response.ok && data.success && data.gameState) {
+          const state = data.gameState as SerializedGameState
+          setCurrentState(state)
+          setGameCode(state.id)
+          setPlayerLinks(buildLinksFromState(state))
+        }
+      } catch (error) {
+        console.warn('Failed to fetch existing game state', error)
+      }
+    }
+
+    fetchExistingState()
+  }, [])
+
+  useEffect(() => {
+    if (gameState) {
+      setCurrentState(gameState)
+      setGameCode(gameState.id)
+      setPlayerLinks(buildLinksFromState(gameState))
+    }
+  }, [gameState])
+
+  useEffect(() => {
+    if (currentState) {
+      setPlayerLinks(buildLinksFromState(currentState))
+      setGameCode(currentState.id)
+    }
+  }, [currentState])
+
+  const activeState = currentState ?? gameState ?? null
 
   const handleStartGame = async () => {
     const names = playerNames
@@ -122,13 +170,17 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         if (data.game?.id) {
           setGameCode(data.game.id)
         }
+        if (data.game) {
+          setCurrentState(data.game as SerializedGameState)
+        }
         toast.success('Guest invitations prepared.')
       } else {
         throw new Error(data.error || 'Failed to kindle the manor.')
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error starting game:', error)
-      toast.error(error.message || 'Failed to kindle the manor.')
+      const message = error instanceof Error ? error.message : 'Failed to kindle the manor.'
+      toast.error(message)
     } finally {
       setIsStartingGame(false)
     }
@@ -149,13 +201,15 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         setPlayerNames('')
         setPlayerLinks({})
         setGameCode(null)
+        setCurrentState(null)
         toast.success('The manor falls silent once more.')
       } else {
         throw new Error('Failed to reset game')
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error resetting game:', error)
-      toast.error(error.message || 'Failed to reset game')
+      const message = error instanceof Error ? error.message : 'Failed to reset game'
+      toast.error(message)
     }
   }
 
@@ -195,12 +249,12 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               <span className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-500'}`} />
               {isConnected ? 'Manor link established' : 'Attempting to reach the manor...'}
             </span>
-            {gameState?.isActive && (
+            {activeState?.isActive && (
               <span className="rounded-full border border-[rgba(177,54,30,0.4)] px-3 py-1 text-manor-candle/90">
-                Game Active · {gameState.stats.alivePlayers} guests breathing
+                Game Active · {activeState.stats.alivePlayers} guests breathing
               </span>
             )}
-            {!gameState?.isActive && <span>Stage a séance to begin the experience.</span>}
+            {!activeState?.isActive && <span>Stage a séance to begin the experience.</span>}
           </div>
         </motion.header>
 
@@ -225,7 +279,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                 value={playerNames}
                 onChange={(event) => setPlayerNames(event.target.value)}
                 placeholder="Eleanor Glass, Victor North, Adelaide Finch, Henry Wolfe"
-                className="h-32 w-full rounded-xl border border-white/10 bg-manor-shadow/60 p-4 font-body text-sm text-manor-candle/85 placeholder:text-manor-parchment/40 focus:border-[rgba(177,54,30,0.4)] focus:outline-none focus:ring-2 focus:ring-manor-ember/30 md:text-base"
+                className="h-32 w-full rounded-xl border border-white/10 bg-manor-shadow/60 p-4 font-body text-sm text-manor-candle/85 placeholder:text-manor-parchment/40 focus:border-[rgba(177,54,30,0.4)] focus:outline-none focus:ring-2 focus:ring-[rgba(177,54,30,0.3)] md:text-base"
               />
               <div className="manor-divider" />
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -288,7 +342,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
           </motion.section>
         )}
 
-        {gameState?.isActive && (
+        {activeState?.isActive && (
           <motion.section
             initial="hidden"
             animate="visible"
@@ -307,9 +361,9 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               </div>
               <div className="flex flex-col gap-3 text-right">
                 <div className="font-body text-sm text-manor-parchment/70">
-                  <p>Total Guests: {gameState.stats.totalPlayers}</p>
-                  <p>Alive: {gameState.stats.alivePlayers}</p>
-                  <p>Departed: {gameState.stats.deadPlayers}</p>
+                  <p>Total Guests: {activeState.stats.totalPlayers}</p>
+                  <p>Alive: {activeState.stats.alivePlayers}</p>
+                  <p>Departed: {activeState.stats.deadPlayers}</p>
                 </div>
                 <button className="btn-danger" onClick={handleResetGame}>
                   Close the Manor
@@ -319,11 +373,11 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.7fr_1fr]">
               <div className="manor-card">
-                <PlayerGrid players={gameState.players as SerializedGameState['players']} />
+                <PlayerGrid players={activeState.players as SerializedGameState['players']} />
               </div>
               <div className="manor-card">
                 <LiveFeed
-                  killEvents={gameState.killEvents}
+                  killEvents={activeState.killEvents}
                   onPlayerKilled={() => undefined}
                   className="bg-transparent"
                 />

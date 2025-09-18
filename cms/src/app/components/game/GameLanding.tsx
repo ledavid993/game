@@ -18,10 +18,6 @@ export default function GameLanding() {
         <div className="h-full w-full bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')]" />
       </div>
 
-      <div className="fixed right-4 top-4 z-50 md:right-8 md:top-8">
-        <ThemeToggle />
-      </div>
-
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center p-6 md:p-12">
         <motion.div
           className="mx-auto flex max-w-5xl flex-col items-center gap-6 text-center"

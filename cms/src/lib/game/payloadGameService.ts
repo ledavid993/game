@@ -5,6 +5,7 @@ import type { Payload } from 'payload';
 import { getPayload } from 'payload';
 
 import type { Game, GamePlayer } from '@/payload-types';
+import type { Server as IOServer } from 'socket.io';
 import type {
   CooldownStatus,
   KillAttemptResult,
@@ -12,6 +13,8 @@ import type {
   Player,
   SerializedGameState,
 } from '@/app/lib/game/types';
+
+const SINGLE_GAME_CODE = 'GAME_MAIN';
 
 interface StartGameOptions {
   playerNames: string[];
@@ -142,17 +145,14 @@ function calculateStats(game: Game, players: GamePlayer[]): SerializedGameState[
   };
 }
 
-function calculateCooldownStatus(
-  player: GamePlayer,
-  game: Game,
-): CooldownStatus {
-  const cooldownMinutes = game.settings?.cooldownMinutes ?? 10;
-  const cooldownMillis = Math.max(cooldownMinutes, 0) * 60 * 1000;
-
+function calculateCooldownStatus(player: GamePlayer, game: Game): CooldownStatus {
   const now = Date.now();
+  const cooldownMillis = Math.max(game.settings?.cooldownMinutes ?? 10, 0) * 60 * 1000;
   const cooldownExpiresAt = player.cooldownExpiresAt
     ? new Date(player.cooldownExpiresAt).getTime()
-    : 0;
+    : player.lastKillAt
+      ? new Date(player.lastKillAt).getTime() + cooldownMillis
+      : 0;
   const remainingMillis = Math.max(0, cooldownExpiresAt - now);
   const remainingSeconds = Math.ceil(remainingMillis / 1000);
 
@@ -205,28 +205,6 @@ async function getGameAndPlayers(payload: Payload, game: Game): Promise<{ game: 
   };
 }
 
-async function ensureUniqueGameCode(payload: Payload): Promise<string> {
-  for (let attempts = 0; attempts < 5; attempts++) {
-    const code = generateCode('GAME');
-    const existing = await payload.find({
-      collection: 'games',
-      where: {
-        code: {
-          equals: code,
-        },
-      },
-      depth: 0,
-      limit: 1,
-    });
-
-    if (existing.docs.length === 0) {
-      return code;
-    }
-  }
-
-  throw new Error('Failed to generate unique game code');
-}
-
 export async function createGameSession({
   playerNames,
   settings,
@@ -248,29 +226,82 @@ export async function createGameSession({
   }
 
   const now = new Date().toISOString();
-  const gameCode = await ensureUniqueGameCode(payload);
+  const murdererCount = Math.min(settings?.murdererCount ?? 2, Math.floor(trimmedNames.length / 3) || 1);
 
-  const murdererCount = Math.min(
-    settings?.murdererCount ?? 2,
-    Math.floor(trimmedNames.length / 3) || 1,
-  );
-
-  const game = (await payload.create({
+  const existingGames = (await payload.find({
     collection: 'games',
-    data: {
-      code: gameCode,
-      status: 'active',
-      hostDisplayName: hostDisplayName ?? 'Host',
-      startedAt: now,
-      settings: {
-        cooldownMinutes: settings?.cooldownMinutes ?? 10,
-        maxPlayers: settings?.maxPlayers ?? 20,
-        murdererCount,
-        theme: settings?.theme ?? 'christmas',
+    depth: 0,
+    limit: 1,
+    sort: '-updatedAt',
+  })) as unknown as { docs: Game[] };
+
+  let game: Game;
+
+  if (existingGames.docs.length > 0) {
+    const current = existingGames.docs[0] as Game;
+
+    await payload.update({
+      collection: 'games',
+      id: String(current.id),
+      data: {
+        code: SINGLE_GAME_CODE,
+        status: 'active',
+        hostDisplayName: hostDisplayName ?? 'Host',
+        startedAt: now,
+        endedAt: null,
+        settings: {
+          cooldownMinutes: settings?.cooldownMinutes ?? 10,
+          maxPlayers: settings?.maxPlayers ?? 20,
+          murdererCount,
+          theme: settings?.theme ?? 'christmas',
+        },
+        killEvents: [],
       },
-      killEvents: [],
-    },
-  })) as unknown as Game;
+    });
+
+    const existingPlayers = (await payload.find({
+      collection: 'game-players',
+      where: {
+        game: {
+          equals: current.id,
+        },
+      },
+      depth: 0,
+      limit: 1000,
+    })) as unknown as { docs: GamePlayer[] };
+
+    await Promise.all(
+      existingPlayers.docs.map((player) =>
+        payload.delete({
+          collection: 'game-players',
+          id: String(player.id),
+        }),
+      ),
+    );
+
+    game = (await payload.findByID({
+      collection: 'games',
+      id: String(current.id),
+      depth: 0,
+    })) as unknown as Game;
+  } else {
+    game = (await payload.create({
+      collection: 'games',
+      data: {
+        code: SINGLE_GAME_CODE,
+        status: 'active',
+        hostDisplayName: hostDisplayName ?? 'Host',
+        startedAt: now,
+        settings: {
+          cooldownMinutes: settings?.cooldownMinutes ?? 10,
+          maxPlayers: settings?.maxPlayers ?? 20,
+          murdererCount,
+          theme: settings?.theme ?? 'christmas',
+        },
+        killEvents: [],
+      },
+    })) as unknown as Game;
+  }
 
   const playersToCreate: PlayerSeed[] = trimmedNames.map((name) => ({
     game: game.id,
@@ -366,7 +397,23 @@ export async function getSerializedGameState({
   }
 
   if (!game) {
-    throw new Error('Unable to resolve game state');
+    const fallback = (await payload.find({
+      collection: 'games',
+      where: {
+        status: {
+          equals: 'active',
+        },
+      },
+      sort: '-updatedAt',
+      depth: 0,
+      limit: 1,
+    })) as unknown as { docs: Game[] };
+
+    if (fallback.docs.length === 0) {
+      throw new Error('Unable to resolve game state');
+    }
+
+    game = fallback.docs[0] as Game;
   }
 
   const { players } = await getGameAndPlayers(await getPayloadClient(), game);
@@ -396,8 +443,8 @@ export async function getSerializedGameState({
   return serialized;
 }
 
-function getSocketServer() {
-  return (globalThis as unknown as { server?: { io?: any } }).server?.io;
+function getSocketServer(): IOServer | undefined {
+  return (globalThis as unknown as { server?: { io?: IOServer } }).server?.io;
 }
 
 function emitToGame(gameCode: string, event: string, payload: unknown) {

@@ -152,9 +152,10 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
         toast.success(`✅ ${result.message}`, { duration: 4000 })
         setSelectedTarget('')
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error sending kill attempt:', error)
-      toast.error(error.message || 'Kill attempt failed')
+      const message = error instanceof Error ? error.message : 'Kill attempt failed'
+      toast.error(message)
     } finally {
       setIsKilling(false)
     }
@@ -169,6 +170,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
       setCooldownTimer(0)
       return
     }
+
     setCooldownTimer(cooldownStatus.remainingSeconds)
     if (cooldownStatus.remainingSeconds <= 0) return
 
@@ -177,7 +179,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
     }, 1000)
 
     return () => clearInterval(interval)
-  }, [cooldownStatus?.remainingSeconds])
+  }, [cooldownStatus])
 
   const narrativeStatus = useMemo(() => {
     if (!player) return 'Awaiting assignment'

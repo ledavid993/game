@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+
 @layer base {
   :root {
     --manor-midnight: #090b10;

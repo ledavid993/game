@@ -32,6 +32,9 @@ export default {
           parchment: '#d8c7a1',
           moss: '#3f4f44',
         },
+        'manor-ember': '#b1361e',
+        'manor-wine': '#40131f',
+        'manor-shadow': '#111622',
       },
       fontFamily: {
         manor: ['var(--font-cinzel)', 'serif'],
@@ -51,6 +54,8 @@ export default {
       },
       screens: {
         tv: '1200px',
+        md: '768px',
+        ...defaultTheme.screens,
       },
     },
   },

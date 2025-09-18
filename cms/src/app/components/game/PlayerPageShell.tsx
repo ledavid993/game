@@ -13,10 +13,6 @@ interface PlayerPageShellProps {
 export function PlayerPageShell({ playerId }: PlayerPageShellProps) {
   return (
     <>
-      <div className="fixed right-4 top-4 z-50 md:right-8 md:top-8">
-        <ThemeToggle />
-      </div>
-
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
         <div className="relative z-10 flex min-h-screen flex-col">
           <main className="flex-1">
