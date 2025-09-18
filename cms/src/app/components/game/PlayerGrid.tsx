@@ -8,7 +8,7 @@ interface PlayerGridProps {
   players: Player[]
   className?: string
   showRoles?: boolean
-  onPlayerClick?: (player: Player) => void
+  onPlayerClick?: (player: Player, event: React.MouseEvent<HTMLDivElement>) => void
 }
 
 export function PlayerGrid({
@@ -71,7 +71,7 @@ export function PlayerGrid({
           variants={itemVariants}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => onPlayerClick?.(player)}
+          onClick={(event) => onPlayerClick?.(player, event)}
           className={`
             p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer
             backdrop-blur-sm hover:shadow-lg

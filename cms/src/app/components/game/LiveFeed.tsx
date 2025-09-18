@@ -9,6 +9,7 @@ interface LiveFeedProps {
   onPlayerKilled?: (killEvent: KillEvent) => void
   className?: string
   maxEvents?: number
+  highlightNewEvent?: boolean
 }
 
 export function LiveFeed({
@@ -16,6 +17,7 @@ export function LiveFeed({
   onPlayerKilled,
   className = '',
   maxEvents = 10,
+  highlightNewEvent = true,
 }: LiveFeedProps) {
   const [visibleEvents, setVisibleEvents] = useState<KillEvent[]>([])
   const [newEvent, setNewEvent] = useState<KillEvent | null>(null)
@@ -30,14 +32,16 @@ export function LiveFeed({
 
     if (latest && latest.id !== latestEventId.current) {
       latestEventId.current = latest.id
-      setNewEvent(latest)
+      if (highlightNewEvent) {
+        setNewEvent(latest)
+      }
       onPlayerKilled?.(latest)
 
       if (clearHighlightTimeout.current) {
         clearTimeout(clearHighlightTimeout.current)
       }
 
-      if (typeof window !== 'undefined') {
+      if (highlightNewEvent && typeof window !== 'undefined') {
         clearHighlightTimeout.current = setTimeout(() => setNewEvent(null), 3000)
       }
     }
@@ -48,7 +52,7 @@ export function LiveFeed({
         clearHighlightTimeout.current = null
       }
     }
-  }, [killEvents, maxEvents, onPlayerKilled])
+  }, [killEvents, maxEvents, onPlayerKilled, highlightNewEvent])
 
   const getEventIcon = (event: KillEvent): string => {
     if (event.message.includes('WIN')) return '🎉'
@@ -128,7 +132,7 @@ export function LiveFeed({
         </AnimatePresence>
       </div>
 
-      {newEvent && (
+      {highlightNewEvent && newEvent && (
         <motion.div
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}

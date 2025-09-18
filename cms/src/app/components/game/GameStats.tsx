@@ -9,7 +9,7 @@ interface GameStatsProps {
 }
 
 export function GameStats({ gameState }: GameStatsProps) {
-  const { stats, isActive } = gameState
+  const { stats, isActive, settings } = gameState
 
   const formatDuration = (ms?: number) => {
     if (!ms) return '—'
@@ -21,103 +21,100 @@ export function GameStats({ gameState }: GameStatsProps) {
     return `${minutes}m`
   }
 
-  const getGameStatus = () => {
-    if (stats.gameEnded) return { text: 'Completed', color: 'text-red-500', icon: '🏁' }
-    if (isActive) return { text: 'In Progress', color: 'text-green-500', icon: '🎭' }
-    return { text: 'Lobby', color: 'text-yellow-500', icon: '⏳' }
-  }
+  const status = (() => {
+    if (stats.gameEnded) return { text: 'Performance Concluded', tone: 'text-red-300', badge: '🏁' }
+    if (isActive) return { text: 'Performance In Progress', tone: 'text-green-300', badge: '🎭' }
+    return { text: 'Lobby Gathering', tone: 'text-amber-300', badge: '🛋️' }
+  })()
 
-  const status = getGameStatus()
+  const progressAlive = stats.totalPlayers > 0 ? (stats.alivePlayers / stats.totalPlayers) * 100 : 0
+  const progressDead = stats.totalPlayers > 0 ? (stats.deadPlayers / stats.totalPlayers) * 100 : 0
 
-  const statCards = [
+  const rows = [
     {
+      label: 'Alive Guests',
       value: stats.alivePlayers,
-      label: 'Alive',
-      color: 'text-green-500',
-      icon: '😶',
-      bgColor: 'bg-green-900/20 border-green-500/30'
+      accent: 'bg-green-500/20 text-green-300',
+      border: 'border-green-500/30',
+      progress: progressAlive,
     },
     {
+      label: 'Departed Guests',
       value: stats.deadPlayers,
-      label: 'Dead',
-      color: 'text-red-500',
-      icon: '💀',
-      bgColor: 'bg-red-900/20 border-red-500/30'
+      accent: 'bg-red-500/15 text-red-300',
+      border: 'border-red-500/30',
+      progress: progressDead,
     },
     {
-      value: stats.murderers,
       label: 'Murderers',
-      color: 'text-orange-500',
-      icon: '🔪',
-      bgColor: 'bg-orange-900/20 border-orange-500/30'
+      value: stats.murderers,
+      accent: 'bg-manor-wine/30 text-manor-candle',
+      border: 'border-manor-wine/40',
     },
     {
-      value: stats.civilians,
       label: 'Civilians',
-      color: 'text-blue-500',
-      icon: '👤',
-      bgColor: 'bg-blue-900/20 border-blue-500/30'
-    }
+      value: stats.civilians,
+      accent: 'bg-blue-500/15 text-blue-300',
+      border: 'border-blue-500/30',
+    },
   ]
 
   return (
-    <div className="space-y-4">
-      {/* Game Status */}
+    <div className="space-y-5">
       <motion.div
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-6"
+        className="rounded-xl border border-white/10 bg-gradient-to-br from-white/10 via-transparent to-transparent p-4 text-center"
       >
-        <div className={`text-2xl ${status.color} font-bold flex items-center justify-center gap-2`}>
-          <span className="text-3xl">{status.icon}</span>
-          {status.text}
+        <div className="flex items-center justify-center gap-2 text-lg font-semibold uppercase tracking-[0.3em] text-manor-parchment/70">
+          <span>{status.badge}</span>
+          <span className={status.tone}>{status.text}</span>
         </div>
-        {stats.duration && (
-          <div className="text-sm text-manor-parchment/70 mt-1">
-            Duration: {formatDuration(stats.duration)}
+        <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-manor-parchment/60">
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <div className="text-xs uppercase tracking-[0.3em]">Duration</div>
+            <div className="mt-1 text-manor-candle font-semibold">{formatDuration(stats.duration)}</div>
           </div>
-        )}
+          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+            <div className="text-xs uppercase tracking-[0.3em]">Murderers</div>
+            <div className="mt-1 text-manor-candle font-semibold">{stats.murderers}/{settings.murdererCount}</div>
+          </div>
+        </div>
       </motion.div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {statCards.map((stat, index) => (
+      <div className="space-y-3">
+        {rows.map((row, idx) => (
           <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1, duration: 0.3 }}
-            className={`
-              rounded-lg border p-4 text-center backdrop-blur-sm
-              ${stat.bgColor}
-            `}
+            key={row.label}
+            initial={{ opacity: 0, x: -15 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 * idx, duration: 0.35 }}
+            className={`rounded-xl border ${row.border} bg-black/30 p-4`}
           >
-            <div className="text-2xl mb-1">{stat.icon}</div>
-            <div className={`text-2xl font-bold ${stat.color} mb-1`}>
-              {stat.value}
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">{row.label}</div>
+              <div className={`px-3 py-1 rounded-full text-sm font-semibold ${row.accent}`}>{row.value}</div>
             </div>
-            <div className="text-xs uppercase tracking-wider text-manor-parchment/80">
-              {stat.label}
-            </div>
+            {row.progress !== undefined && (
+              <div className="mt-3 h-2 rounded-full bg-white/5">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-manor-wine to-manor-candle"
+                  style={{ width: `${Math.min(100, Math.max(0, row.progress))}%` }}
+                />
+              </div>
+            )}
           </motion.div>
         ))}
       </div>
 
-      {/* Additional Stats */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-        className="grid grid-cols-2 gap-3 text-center"
+        transition={{ delay: 0.3, duration: 0.4 }}
+        className="rounded-xl border border-white/10 bg-black/20 p-4 text-center"
       >
-        <div className="rounded-lg border border-manor-wine/30 bg-manor-wine/10 p-3">
-          <div className="text-lg font-bold text-manor-candle">{stats.totalKills}</div>
-          <div className="text-xs uppercase tracking-wider text-manor-parchment/80">Total Kills</div>
-        </div>
-        <div className="rounded-lg border border-manor-wine/30 bg-manor-wine/10 p-3">
-          <div className="text-lg font-bold text-manor-candle">{stats.totalPlayers}</div>
-          <div className="text-xs uppercase tracking-wider text-manor-parchment/80">Total Players</div>
-        </div>
+        <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">Total Kills</div>
+        <div className="mt-1 text-xl font-semibold text-manor-candle">{stats.totalKills}</div>
       </motion.div>
     </div>
   )

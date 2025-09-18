@@ -671,7 +671,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
           </motion.section>
 
           {/* Live Feed Section - Full width under the three columns */}
-          {currentState?.isActive ?? (
+          {activeState && (
             <motion.section
               initial="hidden"
               animate="visible"
@@ -686,15 +686,15 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                   </h3>
                   <div className="flex items-center gap-2 text-sm">
                     <div
-                      className={`w-2 h-2 rounded-full ${currentState?.isActive ? 'bg-green-400' : 'bg-gray-500'}`}
+                      className={`w-2 h-2 rounded-full ${activeState.isActive ? 'bg-green-400' : 'bg-gray-500'}`}
                     />
                     <span className="text-manor-parchment/80">
-                      {currentState?.isActive ? 'Broadcasting' : 'Awaiting Performance'}
+                      {activeState.isActive ? 'Broadcasting' : 'Awaiting Performance'}
                     </span>
                   </div>
                 </div>
                 <LiveFeed
-                  killEvents={currentState?.killEvents || []}
+                  killEvents={activeState?.killEvents || []}
                   onPlayerKilled={() => undefined}
                   className="bg-transparent"
                 />
