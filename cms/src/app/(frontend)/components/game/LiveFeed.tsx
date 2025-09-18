@@ -1,14 +1,14 @@
-'use client';
+'use client'
 
-import React, { useEffect, useRef, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { KillEvent } from '@/lib/game/types';
+import React, { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { KillEvent } from '@/app/(frontend)/lib/game/types'
 
 interface LiveFeedProps {
-  killEvents: KillEvent[];
-  onPlayerKilled?: (killEvent: KillEvent) => void;
-  className?: string;
-  maxEvents?: number;
+  killEvents: KillEvent[]
+  onPlayerKilled?: (killEvent: KillEvent) => void
+  className?: string
+  maxEvents?: number
 }
 
 export function LiveFeed({
@@ -17,67 +17,65 @@ export function LiveFeed({
   className = '',
   maxEvents = 10,
 }: LiveFeedProps) {
-  const [visibleEvents, setVisibleEvents] = useState<KillEvent[]>([]);
-  const [newEvent, setNewEvent] = useState<KillEvent | null>(null);
-  const latestEventId = useRef<string | null>(null);
-  const clearHighlightTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [visibleEvents, setVisibleEvents] = useState<KillEvent[]>([])
+  const [newEvent, setNewEvent] = useState<KillEvent | null>(null)
+  const latestEventId = useRef<string | null>(null)
+  const clearHighlightTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const recentEvents = killEvents.slice(-maxEvents);
-    setVisibleEvents(recentEvents);
+    const recentEvents = killEvents.slice(-maxEvents)
+    setVisibleEvents(recentEvents)
 
-    const latest = recentEvents.at(-1);
+    const latest = recentEvents.at(-1)
 
     if (latest && latest.id !== latestEventId.current) {
-      latestEventId.current = latest.id;
-      setNewEvent(latest);
-      onPlayerKilled?.(latest);
+      latestEventId.current = latest.id
+      setNewEvent(latest)
+      onPlayerKilled?.(latest)
 
       if (clearHighlightTimeout.current) {
-        clearTimeout(clearHighlightTimeout.current);
+        clearTimeout(clearHighlightTimeout.current)
       }
 
       if (typeof window !== 'undefined') {
-        clearHighlightTimeout.current = setTimeout(() => setNewEvent(null), 3000);
+        clearHighlightTimeout.current = setTimeout(() => setNewEvent(null), 3000)
       }
     }
 
     return () => {
       if (clearHighlightTimeout.current) {
-        clearTimeout(clearHighlightTimeout.current);
-        clearHighlightTimeout.current = null;
+        clearTimeout(clearHighlightTimeout.current)
+        clearHighlightTimeout.current = null
       }
-    };
-  }, [killEvents, maxEvents, onPlayerKilled]);
+    }
+  }, [killEvents, maxEvents, onPlayerKilled])
 
   const getEventIcon = (event: KillEvent): string => {
-    if (event.message.includes('WIN')) return '🎉';
-    if (event.message.includes('killed')) return '💀';
-    if (event.message.includes('joined')) return '👥';
-    return '📢';
-  };
+    if (event.message.includes('WIN')) return '🎉'
+    if (event.message.includes('killed')) return '💀'
+    if (event.message.includes('joined')) return '👥'
+    return '📢'
+  }
 
   const getEventColor = (event: KillEvent): string => {
-    if (event.message.includes('WIN')) return 'text-yellow-400';
-    if (event.message.includes('killed')) return 'text-red-400';
-    if (event.message.includes('joined')) return 'text-green-400';
-    return 'text-blue-400';
-  };
+    if (event.message.includes('WIN')) return 'text-yellow-400'
+    if (event.message.includes('killed')) return 'text-red-400'
+    if (event.message.includes('joined')) return 'text-green-400'
+    return 'text-blue-400'
+  }
 
   const formatTimestamp = (timestamp: number): string => {
     return new Date(timestamp).toLocaleTimeString([], {
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
-    });
-  };
+      second: '2-digit',
+    })
+  }
 
   return (
     <div className={`bg-gray-900 rounded-xl p-6 h-full ${className}`}>
       <div className="flex items-center mb-4">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          📺 Live Feed
-        </h2>
+        <h2 className="text-2xl font-bold text-white flex items-center gap-2">📺 Live Feed</h2>
         <div className="ml-auto flex items-center gap-2">
           <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
           <span className="text-sm text-gray-400">LIVE</span>
@@ -104,12 +102,13 @@ export function LiveFeed({
                   opacity: 1,
                   x: 0,
                   scale: 1,
-                  backgroundColor: newEvent?.id === event.id ? '#dc2626' : 'rgba(255, 255, 255, 0.1)'
+                  backgroundColor:
+                    newEvent?.id === event.id ? '#dc2626' : 'rgba(255, 255, 255, 0.1)',
                 }}
                 exit={{ opacity: 0, x: 50, scale: 0.9 }}
                 transition={{
                   duration: 0.3,
-                  backgroundColor: { duration: 2 }
+                  backgroundColor: { duration: 2 },
                 }}
                 className={`
                   p-4 rounded-lg backdrop-blur-sm border border-white/20
@@ -119,12 +118,8 @@ export function LiveFeed({
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{getEventIcon(event)}</span>
                   <div className="flex-1">
-                    <p className={`font-bold ${getEventColor(event)}`}>
-                      {event.message}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {formatTimestamp(event.timestamp)}
-                    </p>
+                    <p className={`font-bold ${getEventColor(event)}`}>{event.message}</p>
+                    <p className="text-xs text-gray-400 mt-1">{formatTimestamp(event.timestamp)}</p>
                   </div>
                 </div>
               </motion.div>
@@ -147,5 +142,5 @@ export function LiveFeed({
         </motion.div>
       )}
     </div>
-  );
+  )
 }

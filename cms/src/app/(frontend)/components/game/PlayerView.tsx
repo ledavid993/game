@@ -1,14 +1,14 @@
-'use client';
+'use client'
 
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSocket } from './useSocket';
-import { Player, CooldownStatus, KillAttemptResult } from '@/lib/game/types';
-import toast from 'react-hot-toast';
+import React, { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useSocket } from './useSocket'
+import { Player, CooldownStatus, KillAttemptResult } from '@/app/(frontend)/lib/game/types'
+import toast from 'react-hot-toast'
 
 interface PlayerViewProps {
-  playerId: string;
-  className?: string;
+  playerId: string
+  className?: string
 }
 
 export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
@@ -20,61 +20,59 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
     onPlayerKilled,
     onKillAttemptResult,
     onGameEnded,
-  } = useSocket();
+  } = useSocket()
 
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [cooldownStatus, setCooldownStatus] = useState<CooldownStatus | null>(null);
-  const [availableTargets, setAvailableTargets] = useState<Player[]>([]);
-  const [selectedTarget, setSelectedTarget] = useState<string>('');
-  const [isKilling, setIsKilling] = useState(false);
-  const [cooldownTimer, setCooldownTimer] = useState<number>(0);
+  const [player, setPlayer] = useState<Player | null>(null)
+  const [cooldownStatus, setCooldownStatus] = useState<CooldownStatus | null>(null)
+  const [availableTargets, setAvailableTargets] = useState<Player[]>([])
+  const [selectedTarget, setSelectedTarget] = useState<string>('')
+  const [isKilling, setIsKilling] = useState(false)
+  const [cooldownTimer, setCooldownTimer] = useState<number>(0)
 
   useEffect(() => {
     if (isConnected && playerId) {
-      joinGame(playerId);
+      joinGame(playerId)
     }
-  }, [isConnected, playerId, joinGame]);
+  }, [isConnected, playerId, joinGame])
 
   useEffect(() => {
     if (gameState && playerId) {
-      const currentPlayer = gameState.players.find(p => p.id === playerId);
-      setPlayer(currentPlayer || null);
+      const currentPlayer = gameState.players.find((p) => p.id === playerId)
+      setPlayer(currentPlayer || null)
 
       // Get available targets for murderers
       if (currentPlayer?.role === 'murderer' && currentPlayer.isAlive) {
-        const targets = gameState.players.filter(p =>
-          p.id !== playerId && p.isAlive
-        );
-        setAvailableTargets(targets);
+        const targets = gameState.players.filter((p) => p.id !== playerId && p.isAlive)
+        setAvailableTargets(targets)
       } else {
-        setAvailableTargets([]);
+        setAvailableTargets([])
       }
     }
-  }, [gameState, playerId]);
+  }, [gameState, playerId])
 
   useEffect(() => {
     // Fetch player-specific data including cooldown
     const fetchPlayerData = async () => {
-      if (!playerId) return;
+      if (!playerId) return
 
       try {
-        const response = await fetch(`/api/game/state?playerId=${playerId}`);
-        const data = await response.json();
+        const response = await fetch(`/api/game/state?playerId=${playerId}`)
+        const data = await response.json()
 
         if (data.playerData) {
-          setCooldownStatus(data.playerData.cooldownStatus);
-          setAvailableTargets(data.playerData.availableTargets);
+          setCooldownStatus(data.playerData.cooldownStatus)
+          setAvailableTargets(data.playerData.availableTargets)
         }
       } catch (error) {
-        console.error('Error fetching player data:', error);
+        console.error('Error fetching player data:', error)
       }
-    };
+    }
 
-    fetchPlayerData();
-    const interval = setInterval(fetchPlayerData, 1000); // Update every second for cooldown
+    fetchPlayerData()
+    const interval = setInterval(fetchPlayerData, 1000) // Update every second for cooldown
 
-    return () => clearInterval(interval);
-  }, [playerId, gameState]);
+    return () => clearInterval(interval)
+  }, [playerId, gameState])
 
   useEffect(() => {
     // Set up event listeners
@@ -83,80 +81,83 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
         toast.error('💀 You have been killed!', {
           duration: 5000,
           position: 'top-center',
-        });
+        })
       } else {
         toast.error(`💀 ${killEvent.message}`, {
           duration: 3000,
-        });
+        })
       }
-    });
+    })
 
     const cleanupResult = onKillAttemptResult((result: KillAttemptResult) => {
-      setIsKilling(false);
-      setSelectedTarget('');
+      setIsKilling(false)
+      setSelectedTarget('')
 
       if (result.success) {
         toast.success(`✅ ${result.message}`, {
           duration: 4000,
-        });
+        })
       } else {
         toast.error(`❌ ${result.message}`, {
           duration: 4000,
-        });
+        })
       }
-    });
+    })
 
     const cleanupEnded = onGameEnded((winner) => {
-      const isWinner = (player?.role === 'murderer' && winner === 'murderers') ||
-                      (player?.role === 'civilian' && winner === 'civilians');
+      const isWinner =
+        (player?.role === 'murderer' && winner === 'murderers') ||
+        (player?.role === 'civilian' && winner === 'civilians')
 
       toast.success(
-        isWinner ? `🎉 You Win! ${winner.toUpperCase()} VICTORY!` : `😢 You Lose! ${winner.toUpperCase()} WIN!`,
+        isWinner
+          ? `🎉 You Win! ${winner.toUpperCase()} VICTORY!`
+          : `😢 You Lose! ${winner.toUpperCase()} WIN!`,
         {
           duration: 8000,
           position: 'top-center',
-        }
-      );
-    });
+        },
+      )
+    })
 
     return () => {
-      cleanupKilled();
-      cleanupResult();
-      cleanupEnded();
-    };
-  }, [onPlayerKilled, onKillAttemptResult, onGameEnded, player]);
+      cleanupKilled()
+      cleanupResult()
+      cleanupEnded()
+    }
+  }, [onPlayerKilled, onKillAttemptResult, onGameEnded, player])
 
   const handleKill = async () => {
-    if (!selectedTarget || !player || isKilling) return;
+    if (!selectedTarget || !player || isKilling) return
 
-    setIsKilling(true);
-    killPlayer(player.id, selectedTarget);
+    setIsKilling(true)
+    killPlayer(player.id, selectedTarget)
 
     // Add haptic feedback for mobile
     if ('vibrate' in navigator) {
-      navigator.vibrate(200);
+      navigator.vibrate(200)
     }
-  };
+  }
 
   const formatCooldownTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-  };
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = seconds % 60
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
 
   const getPlayerStatusEmoji = (): string => {
-    if (!player) return '❓';
-    if (!player.isAlive) return '💀';
-    if (player.role === 'murderer') return '🔪';
-    return '🧑‍🎄';
-  };
+    if (!player) return '❓'
+    if (!player.isAlive) return '💀'
+    if (player.role === 'murderer') return '🔪'
+    return '🧑‍🎄'
+  }
 
   const getPlayerStatusColor = (): string => {
-    if (!player) return 'bg-gray-900';
-    if (!player.isAlive) return 'bg-gray-900';
-    if (player.role === 'murderer') return 'bg-red-900';
-    return 'bg-green-900';
-  };
+    if (!player) return 'bg-gray-900'
+    if (!player.isAlive) return 'bg-gray-900'
+    if (player.role === 'murderer') return 'bg-red-900'
+    return 'bg-green-900'
+  }
 
   if (!isConnected) {
     return (
@@ -166,7 +167,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           <p className="text-xl">Connecting to game...</p>
         </div>
       </div>
-    );
+    )
   }
 
   if (!player) {
@@ -178,7 +179,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           <p className="text-sm text-gray-400 mt-2">Game may not have started yet</p>
         </div>
       </div>
-    );
+    )
   }
 
   return (
@@ -210,22 +211,26 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           className="text-center mb-8"
         >
           <div className="text-8xl mb-4">{getPlayerStatusEmoji()}</div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Welcome, {player.name}!
-          </h1>
-          <div className={`inline-block px-4 py-2 rounded-full text-lg font-semibold ${
-            player.isAlive ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
-          }`}>
+          <h1 className="text-3xl font-bold text-white mb-2">Welcome, {player.name}!</h1>
+          <div
+            className={`inline-block px-4 py-2 rounded-full text-lg font-semibold ${
+              player.isAlive ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'
+            }`}
+          >
             {player.isAlive ? 'ALIVE' : 'DEAD'}
           </div>
         </motion.div>
 
         {/* Connection Status */}
         <div className="text-center mb-6">
-          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
-            isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
-          }`}>
-            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-300' : 'bg-red-300'}`} />
+          <div
+            className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
+              isConnected ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+            }`}
+          >
+            <div
+              className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-300' : 'bg-red-300'}`}
+            />
             {isConnected ? 'Connected' : 'Disconnected'}
           </div>
         </div>
@@ -238,21 +243,24 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
         >
           <div className="text-center">
             <h2 className="text-2xl font-bold text-white mb-2">Your Role</h2>
-            <div className={`text-6xl mb-4 ${
-              player.role === 'murderer' ? 'text-red-400' : 'text-green-400'
-            }`}>
+            <div
+              className={`text-6xl mb-4 ${
+                player.role === 'murderer' ? 'text-red-400' : 'text-green-400'
+              }`}
+            >
               {player.role === 'murderer' ? '🔪' : '🧑‍🎄'}
             </div>
-            <p className={`text-xl font-semibold ${
-              player.role === 'murderer' ? 'text-red-300' : 'text-green-300'
-            }`}>
+            <p
+              className={`text-xl font-semibold ${
+                player.role === 'murderer' ? 'text-red-300' : 'text-green-300'
+              }`}
+            >
               {player.role === 'murderer' ? 'MURDERER' : 'CIVILIAN'}
             </p>
             <p className="text-sm text-gray-300 mt-2">
               {player.role === 'murderer'
                 ? 'Eliminate civilians, but avoid suspicion!'
-                : 'Stay alive and help identify the murderers!'
-              }
+                : 'Stay alive and help identify the murderers!'}
             </p>
           </div>
         </motion.div>
@@ -285,21 +293,17 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
             animate={{ opacity: 1, y: 0 }}
             className="bg-black/30 backdrop-blur-sm rounded-xl p-6"
           >
-            <h3 className="text-xl font-bold text-red-300 mb-4 text-center">
-              🔪 Murder Controls
-            </h3>
+            <h3 className="text-xl font-bold text-red-300 mb-4 text-center">🔪 Murder Controls</h3>
 
             {/* Cooldown Display */}
             {cooldownStatus && !cooldownStatus.canKill && (
               <div className="mb-4">
-                <div className="text-center text-yellow-300 mb-2">
-                  ⏳ Cooldown Active
-                </div>
+                <div className="text-center text-yellow-300 mb-2">⏳ Cooldown Active</div>
                 <div className="cooldown-timer">
                   <div
                     className="cooldown-progress"
                     style={{
-                      width: `${((10 * 60 - cooldownStatus.remainingSeconds) / (10 * 60)) * 100}%`
+                      width: `${((10 * 60 - cooldownStatus.remainingSeconds) / (10 * 60)) * 100}%`,
                     }}
                   />
                 </div>
@@ -377,9 +381,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
             animate={{ opacity: 1, y: 0 }}
             className="bg-black/30 backdrop-blur-sm rounded-xl p-6"
           >
-            <h3 className="text-xl font-bold text-gray-300 mb-4 text-center">
-              💀 You Are Dead
-            </h3>
+            <h3 className="text-xl font-bold text-gray-300 mb-4 text-center">💀 You Are Dead</h3>
             <div className="text-center">
               <div className="text-4xl mb-4">👻</div>
               <p className="text-white">You have been eliminated!</p>
@@ -408,5 +410,5 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
         )}
       </div>
     </div>
-  );
+  )
 }

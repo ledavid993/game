@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { initializeSocket } from '@/lib/game/socket';
+import { NextRequest, NextResponse } from 'next/server'
+import { initializeSocket } from '@/app/(frontend)/lib/game/socket'
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,14 +8,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       status: 'Socket.IO server is available',
       endpoint: '/socket.io/',
-    });
-
+    })
   } catch (error: any) {
-    console.error('Error with Socket.IO:', error);
+    console.error('Error with Socket.IO:', error)
 
-    return NextResponse.json(
-      { error: 'Socket.IO server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Socket.IO server error' }, { status: 500 })
   }
 }

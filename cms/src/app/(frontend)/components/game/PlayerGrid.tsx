@@ -1,51 +1,51 @@
-'use client';
+'use client'
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Player } from '@/lib/game/types';
+import React from 'react'
+import { motion } from 'framer-motion'
+import { Player } from '@/app/(frontend)/lib/game/types'
 
 interface PlayerGridProps {
-  players: Player[];
-  className?: string;
-  showRoles?: boolean;
-  onPlayerClick?: (player: Player) => void;
+  players: Player[]
+  className?: string
+  showRoles?: boolean
+  onPlayerClick?: (player: Player) => void
 }
 
 export function PlayerGrid({
   players,
   className = '',
   showRoles = false,
-  onPlayerClick
+  onPlayerClick,
 }: PlayerGridProps) {
   const getPlayerEmoji = (player: Player): string => {
-    if (!player.isAlive) return '💀';
+    if (!player.isAlive) return '💀'
     if (showRoles) {
-      return player.role === 'murderer' ? '🔪' : '🧑‍🎄';
+      return player.role === 'murderer' ? '🔪' : '🧑‍🎄'
     }
-    return '🧑‍🎄';
-  };
+    return '🧑‍🎄'
+  }
 
   const getPlayerStatusColor = (player: Player): string => {
-    if (!player.isAlive) return 'bg-gray-700 border-gray-500';
-    if (showRoles && player.role === 'murderer') return 'bg-red-900 border-red-500';
-    return 'bg-green-900 border-green-500';
-  };
+    if (!player.isAlive) return 'bg-gray-700 border-gray-500'
+    if (showRoles && player.role === 'murderer') return 'bg-red-900 border-red-500'
+    return 'bg-green-900 border-green-500'
+  }
 
   const getPlayerTextColor = (player: Player): string => {
-    if (!player.isAlive) return 'text-gray-400';
-    if (showRoles && player.role === 'murderer') return 'text-red-300';
-    return 'text-green-300';
-  };
+    if (!player.isAlive) return 'text-gray-400'
+    if (showRoles && player.role === 'murderer') return 'text-red-300'
+    return 'text-green-300'
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.1
-      }
-    }
-  };
+        staggerChildren: 0.1,
+      },
+    },
+  }
 
   const itemVariants = {
     hidden: { opacity: 0, scale: 0.8 },
@@ -53,10 +53,10 @@ export function PlayerGrid({
       opacity: 1,
       scale: 1,
       transition: {
-        duration: 0.3
-      }
-    }
-  };
+        duration: 0.3,
+      },
+    },
+  }
 
   return (
     <motion.div
@@ -83,9 +83,7 @@ export function PlayerGrid({
           <div className="text-center">
             <div className="text-4xl mb-2">{getPlayerEmoji(player)}</div>
 
-            <h3 className={`font-bold text-lg ${getPlayerTextColor(player)}`}>
-              {player.name}
-            </h3>
+            <h3 className={`font-bold text-lg ${getPlayerTextColor(player)}`}>{player.name}</h3>
 
             {showRoles && (
               <p className={`text-sm mt-1 ${getPlayerTextColor(player)}`}>
@@ -94,10 +92,12 @@ export function PlayerGrid({
             )}
 
             <div className="mt-2 flex justify-center items-center gap-2">
-              <div className={`
+              <div
+                className={`
                 w-3 h-3 rounded-full
                 ${player.isAlive ? 'bg-green-400' : 'bg-red-400'}
-              `} />
+              `}
+              />
               <span className={`text-xs ${getPlayerTextColor(player)}`}>
                 {player.isAlive ? 'Alive' : 'Dead'}
               </span>
@@ -124,5 +124,5 @@ export function PlayerGrid({
         </motion.div>
       )}
     </motion.div>
-  );
+  )
 }

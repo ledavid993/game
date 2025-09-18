@@ -1,15 +1,15 @@
-'use client';
+'use client'
 
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-import { useSocket } from './useSocket';
-import { LiveFeed } from './LiveFeed';
-import { PlayerGrid } from './PlayerGrid';
-import { SerializedGameState, StartGameRequest } from '@/lib/game/types';
-import toast from 'react-hot-toast';
+import React, { useEffect, useState } from 'react'
+import { motion } from 'framer-motion'
+import { useSocket } from './useSocket'
+import { LiveFeed } from './LiveFeed'
+import { PlayerGrid } from './PlayerGrid'
+import { SerializedGameState, StartGameRequest } from '@/app/(frontend)/lib/game/types'
+import toast from 'react-hot-toast'
 
 interface HostDashboardProps {
-  className?: string;
+  className?: string
 }
 
 export function HostDashboard({ className = '' }: HostDashboardProps) {
@@ -21,19 +21,19 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     onPlayerJoined,
     onGameStarted,
     onGameEnded,
-  } = useSocket();
+  } = useSocket()
 
-  const [playerNames, setPlayerNames] = useState<string>('');
-  const [isStartingGame, setIsStartingGame] = useState(false);
-  const [playerLinks, setPlayerLinks] = useState<Record<string, string>>({});
-  const [showQRCodes, setShowQRCodes] = useState(false);
+  const [playerNames, setPlayerNames] = useState<string>('')
+  const [isStartingGame, setIsStartingGame] = useState(false)
+  const [playerLinks, setPlayerLinks] = useState<Record<string, string>>({})
+  const [showQRCodes, setShowQRCodes] = useState(false)
 
   useEffect(() => {
     // Join as host when component mounts
     if (isConnected) {
-      joinAsHost();
+      joinAsHost()
     }
-  }, [isConnected, joinAsHost]);
+  }, [isConnected, joinAsHost])
 
   useEffect(() => {
     // Set up event listeners
@@ -41,50 +41,50 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       toast.error(`💀 ${killEvent.message}`, {
         duration: 4000,
         position: 'top-right',
-      });
-    });
+      })
+    })
 
     const cleanupJoined = onPlayerJoined((player) => {
       toast.success(`👥 ${player.name} joined the game!`, {
         duration: 3000,
         position: 'top-right',
-      });
-    });
+      })
+    })
 
     const cleanupStarted = onGameStarted((state) => {
       toast.success('🎉 Game started!', {
         duration: 3000,
         position: 'top-right',
-      });
-    });
+      })
+    })
 
     const cleanupEnded = onGameEnded((winner) => {
       toast.success(`🎉 ${winner.toUpperCase()} WIN!`, {
         duration: 6000,
         position: 'top-center',
-      });
-    });
+      })
+    })
 
     return () => {
-      cleanupKilled();
-      cleanupJoined();
-      cleanupStarted();
-      cleanupEnded();
-    };
-  }, [onPlayerKilled, onPlayerJoined, onGameStarted, onGameEnded]);
+      cleanupKilled()
+      cleanupJoined()
+      cleanupStarted()
+      cleanupEnded()
+    }
+  }, [onPlayerKilled, onPlayerJoined, onGameStarted, onGameEnded])
 
   const handleStartGame = async () => {
     const names = playerNames
       .split(',')
-      .map(name => name.trim())
-      .filter(name => name.length > 0);
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0)
 
     if (names.length < 3) {
-      toast.error('At least 3 players are required!');
-      return;
+      toast.error('At least 3 players are required!')
+      return
     }
 
-    setIsStartingGame(true);
+    setIsStartingGame(true)
 
     try {
       const response = await fetch('/api/game/start', {
@@ -101,58 +101,60 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             theme: 'christmas',
           },
         } as StartGameRequest),
-      });
+      })
 
-      const data = await response.json();
+      const data = await response.json()
 
       if (data.success) {
-        setPlayerLinks(data.playerLinks);
-        toast.success('Game started successfully!');
+        setPlayerLinks(data.playerLinks)
+        toast.success('Game started successfully!')
       } else {
-        throw new Error(data.error || 'Failed to start game');
+        throw new Error(data.error || 'Failed to start game')
       }
     } catch (error: any) {
-      console.error('Error starting game:', error);
-      toast.error(error.message || 'Failed to start game');
+      console.error('Error starting game:', error)
+      toast.error(error.message || 'Failed to start game')
     } finally {
-      setIsStartingGame(false);
+      setIsStartingGame(false)
     }
-  };
+  }
 
   const handleResetGame = async () => {
     try {
       const response = await fetch('/api/game/state', {
         method: 'DELETE',
-      });
+      })
 
       if (response.ok) {
-        setPlayerNames('');
-        setPlayerLinks({});
-        toast.success('Game reset successfully!');
+        setPlayerNames('')
+        setPlayerLinks({})
+        toast.success('Game reset successfully!')
       } else {
-        throw new Error('Failed to reset game');
+        throw new Error('Failed to reset game')
       }
     } catch (error: any) {
-      console.error('Error resetting game:', error);
-      toast.error(error.message || 'Failed to reset game');
+      console.error('Error resetting game:', error)
+      toast.error(error.message || 'Failed to reset game')
     }
-  };
+  }
 
   const copyPlayerLink = (playerId: string, playerName: string) => {
-    const link = playerLinks[playerId];
+    const link = playerLinks[playerId]
     if (link) {
-      navigator.clipboard.writeText(link);
-      toast.success(`Link copied for ${playerName}!`);
+      navigator.clipboard.writeText(link)
+      toast.success(`Link copied for ${playerName}!`)
     }
-  };
+  }
 
   const getLocalIP = () => {
     // This is a placeholder - in a real app you'd get the actual local IP
-    return window.location.hostname;
-  };
+    return window.location.hostname
+  }
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-red-900 via-green-900 to-red-900 ${className}`}>
+    <div
+      className={`min-h-screen bg-gradient-to-br from-red-900 via-green-900 to-red-900 ${className}`}
+    >
       {/* Background decoration */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="snowfall">
@@ -183,8 +185,12 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             🎄 Christmas Murder Mystery 🔪
           </h1>
           <div className="flex items-center justify-center gap-4 text-white">
-            <div className={`flex items-center gap-2 ${isConnected ? 'text-green-400' : 'text-red-400'}`}>
-              <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`} />
+            <div
+              className={`flex items-center gap-2 ${isConnected ? 'text-green-400' : 'text-red-400'}`}
+            >
+              <div
+                className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}
+              />
               <span>{isConnected ? 'Connected' : 'Disconnected'}</span>
             </div>
             {gameState?.isActive && (
@@ -203,9 +209,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             className="max-w-4xl mx-auto mb-8"
           >
             <div className="glass p-8 rounded-xl">
-              <h2 className="text-3xl font-bold text-white mb-6 text-center">
-                🎮 Start New Game
-              </h2>
+              <h2 className="text-3xl font-bold text-white mb-6 text-center">🎮 Start New Game</h2>
 
               <div className="space-y-4">
                 <div>
@@ -244,9 +248,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             className="max-w-6xl mx-auto mb-8"
           >
             <div className="glass p-6 rounded-xl">
-              <h3 className="text-2xl font-bold text-white mb-4 text-center">
-                📱 Player Links
-              </h3>
+              <h3 className="text-2xl font-bold text-white mb-4 text-center">📱 Player Links</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {gameState?.players.map((player) => (
                   <div
@@ -309,10 +311,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               animate={{ opacity: 1, x: 0 }}
               className="lg:col-span-1"
             >
-              <LiveFeed
-                killEvents={gameState.killEvents}
-                className="h-full"
-              />
+              <LiveFeed killEvents={gameState.killEvents} className="h-full" />
             </motion.div>
           </div>
         )}
@@ -326,17 +325,14 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
           >
             <div className="glass p-6 rounded-xl">
               <div className="flex justify-center gap-4">
-                <button
-                  onClick={handleResetGame}
-                  className="btn-danger"
-                >
+                <button onClick={handleResetGame} className="btn-danger">
                   🔄 Reset Game
                 </button>
                 {!gameState.isActive && gameState.endTime && (
                   <button
                     onClick={() => {
-                      setPlayerNames('');
-                      setPlayerLinks({});
+                      setPlayerNames('')
+                      setPlayerLinks({})
                     }}
                     className="btn-secondary"
                   >
@@ -349,5 +345,5 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         )}
       </div>
     </div>
-  );
+  )
 }
