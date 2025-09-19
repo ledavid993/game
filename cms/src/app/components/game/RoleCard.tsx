@@ -121,6 +121,11 @@ export function RoleCard({
   const handleFlip = async () => {
     if (isFlipping || !gameCode) return
 
+    // Dead players cannot reveal their role
+    if (!player.isAlive) {
+      return
+    }
+
     // Only allow revealing the card - hiding will happen automatically after 10 seconds
     if (isFlipped) {
       // Card is already revealed, just wait for auto-hide
@@ -158,6 +163,7 @@ export function RoleCard({
         className={`relative w-full h-full ${
           isFlipping ? 'cursor-wait' :
           isFlipped ? 'cursor-default' :
+          !player.isAlive ? 'cursor-not-allowed' :
           revealsRemaining <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
         }`}
         onClick={handleFlip}

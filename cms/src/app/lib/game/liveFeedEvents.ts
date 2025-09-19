@@ -20,7 +20,14 @@ export class LiveFeedManager {
   }
 
   addEvent(event: GameEvent): void {
-    // Add to localStorage directly
+    // Only handle localStorage on the client side
+    if (typeof window === 'undefined') {
+      // On server side, just notify listeners (for SSR compatibility)
+      this.listeners.forEach(callback => callback(event))
+      return
+    }
+
+    // Add to localStorage directly (client side only)
     const stored = localStorage.getItem('gameEvents')
     let events: GameEvent[] = []
 
@@ -49,7 +56,11 @@ export class LiveFeedManager {
   }
 
   clearEvents(): void {
-    localStorage.removeItem('gameEvents')
+    // Only handle localStorage on the client side
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('gameEvents')
+    }
+
     // Notify listeners that events were cleared
     this.listeners.forEach(callback => callback({
       id: 'clear_events',

@@ -63,6 +63,30 @@ export class MurdererKillAbility implements RoleAbility {
       const now = new Date()
       const protectionExpiry = new Date(target.protectionExpiresAt)
       if (now < protectionExpiry) {
+        const payload = await getPayloadClient()
+        const targetName = await this.getPlayerName(target)
+        const actorName = await this.getPlayerName(actor)
+
+        // Create failed kill event
+        const killEvent = {
+          id: `kill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          eventId: `kill_${Date.now()}`,
+          murdererName: actorName,
+          victimName: targetName,
+          timestamp: new Date().toISOString(),
+          message: `${actorName} attempted to eliminate ${targetName} but they were protected`,
+          successful: false,
+        }
+
+        // Add kill event to game
+        await payload.update({
+          collection: 'games',
+          id: game.id,
+          data: {
+            killEvents: [...(game.killEvents || []), killEvent],
+          },
+        })
+
         return { success: false, message: 'Target is protected by a bodyguard' }
       }
     }
@@ -92,6 +116,26 @@ export class MurdererKillAbility implements RoleAbility {
 
     const targetName = await this.getPlayerName(target)
     const actorName = await this.getPlayerName(actor)
+
+    // Create kill event in the game's killEvents array
+    const killEvent = {
+      id: `kill_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      eventId: `kill_${Date.now()}`,
+      murdererName: actorName,
+      victimName: targetName,
+      timestamp: new Date().toISOString(),
+      message: `${actorName} eliminated ${targetName}`,
+      successful: true,
+    }
+
+    // Add kill event to game
+    await payload.update({
+      collection: 'games',
+      id: game.id,
+      data: {
+        killEvents: [...(game.killEvents || []), killEvent],
+      },
+    })
 
     return {
       success: true,

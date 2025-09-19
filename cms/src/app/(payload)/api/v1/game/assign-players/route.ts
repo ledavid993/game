@@ -7,9 +7,9 @@ const SINGLE_GAME_CODE = 'GAME_MAIN';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { playerCodes } = body; // Array of player codes to assign to the game
+    const { playerCodes, gameSettings } = body; // Array of player codes to assign to the game, and optional game settings
 
-    if (!playerCodes || !Array.isArray(playerCodes) || playerCodes.length === 0) {
+    if (!playerCodes || !Array.isArray(playerCodes)) {
       return NextResponse.json({ success: false, error: 'Player codes array required' }, { status: 400 });
     }
 
@@ -27,23 +27,33 @@ export async function POST(request: NextRequest) {
     if (existingGames.docs.length > 0) {
       game = existingGames.docs[0];
     } else {
-      // Create new game session in lobby status
+      // Create new game session in lobby status with provided settings or defaults
+      const defaultSettings = {
+        cooldownMinutes: 10,
+        maxPlayers: 100,
+        murdererCount: 1,
+      };
+
       game = (await payload.create({
         collection: 'games',
         data: {
           code: SINGLE_GAME_CODE,
           status: 'lobby',
           hostDisplayName: 'Host',
-          settings: {
-            cooldownMinutes: 10,
-            maxPlayers: 100,
-            murdererCount: 1,
-          },
+          settings: gameSettings || defaultSettings,
           killEvents: [],
         },
       })) as unknown as Game;
     }
 
+    // If no players to assign, just return success after ensuring game exists
+    if (playerCodes.length === 0) {
+      return NextResponse.json({
+        success: true,
+        message: 'Game session ensured',
+        assignedPlayers: []
+      });
+    }
 
     // Get players from registry
     const playersResult = (await payload.find({

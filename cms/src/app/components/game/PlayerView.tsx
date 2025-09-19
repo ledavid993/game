@@ -31,7 +31,6 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
   const [isKilling, setIsKilling] = useState(false)
   const [cooldownTimer, setCooldownTimer] = useState(0)
   const [gameCode, setGameCode] = useState<string | null>(null)
-  const [isRoleRevealed, setIsRoleRevealed] = useState(false)
   const [isLoadingPlayer, setIsLoadingPlayer] = useState(true)
 
   // Function to refresh player data when needed
@@ -329,33 +328,33 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           narrativeStatus={narrativeStatus}
           cooldownStatus={cooldownStatus}
           cooldownTimer={cooldownTimer}
-          onFlip={(flipped) => setIsRoleRevealed(flipped)}
           showScrollIndicator={true}
           gameCode={gameCode || undefined}
           availableTargets={availableTargets}
         />
 
-        {/* Voting Section - Always visible */}
-        <div className="mx-auto max-w-5xl w-full px-6 md:px-10 py-6">
-          <motion.section
-            initial="hidden"
-            animate="visible"
-            variants={entranceVariants}
-            transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-            className="manor-card space-y-4"
-          >
-            <VotingInterface
-              player={player}
-              gameCode={gameCode || ''}
-              availableTargets={availableTargets}
-              onActionComplete={refreshPlayerData}
-            />
-          </motion.section>
-        </div>
+        {/* Voting Section - Only visible to alive players */}
+        {player.isAlive && (
+          <div className="mx-auto max-w-5xl w-full px-6 md:px-10 py-6">
+            <motion.section
+              initial="hidden"
+              animate="visible"
+              variants={entranceVariants}
+              transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
+              className="manor-card space-y-4"
+            >
+              <VotingInterface
+                player={player}
+                gameCode={gameCode || ''}
+                availableTargets={availableTargets}
+                onActionComplete={refreshPlayerData}
+              />
+            </motion.section>
+          </div>
+        )}
 
-        {/* Role-specific Actions Section - Only show after role is revealed */}
-        {isRoleRevealed && (
-          <div className="mx-auto max-w-5xl w-full px-6 md:px-10 pb-6 space-y-6">
+        {/* Role-specific Actions Section */}
+        <div className="mx-auto max-w-5xl w-full px-6 md:px-10 pb-6 space-y-6">
             {isMurdererRole(player.role) && player.isAlive && (
               <motion.section
                 initial="hidden"
@@ -403,7 +402,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
                   disabled={!selectedTarget || cooldownTimer > 0 || isKilling}
                 >
                   {cooldownTimer > 0
-                    ? 'Blade cooling...'
+                    ? `Cooldown: ${Math.floor(cooldownTimer / 60)}m ${cooldownTimer % 60}s`
                     : isKilling
                       ? 'Striking...'
                       : 'Strike from the shadows'}
@@ -445,8 +444,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
                 </p>
               </motion.section>
             )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )

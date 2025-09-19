@@ -61,7 +61,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   // Save settings to database when they change
   const saveGameSettings = useCallback(async (newSettings: GameSettingsData) => {
     try {
-      const response = await fetch(`/api/v1/game/status?_t=${Date.now()}`, {
+      let response = await fetch(`/api/v1/game/status?_t=${Date.now()}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -70,6 +70,39 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         },
         body: JSON.stringify({ settings: newSettings }),
       })
+
+      // If game doesn't exist (404), create it first with these settings
+      if (response.status === 404) {
+        console.log('Game not found, creating with current settings')
+
+        // Create game with current settings by calling assign-players with empty array
+        // Pass the settings so the game is created with the correct role distribution
+        const createResponse = await fetch('/api/v1/game/assign-players', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            Pragma: 'no-cache',
+          },
+          body: JSON.stringify({
+            playerCodes: [],
+            gameSettings: newSettings
+          }),
+        })
+
+        if (createResponse.ok) {
+          // Now try to update settings again
+          response = await fetch(`/api/v1/game/status?_t=${Date.now()}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Cache-Control': 'no-cache',
+              Pragma: 'no-cache',
+            },
+            body: JSON.stringify({ settings: newSettings }),
+          })
+        }
+      }
 
       const data = await response.json()
       if (!data.success) {
@@ -286,20 +319,34 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   }, [fetchGameData])
 
   useEffect(() => {
+    let lastFetchTime = Date.now()
+    let visibilityChangeTimeout: NodeJS.Timeout | null = null
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        fetchGameData()
+        const timeSinceLastFetch = Date.now() - lastFetchTime
+
+        // Only fetch if it's been more than 30 seconds since last fetch
+        if (timeSinceLastFetch > 30000) {
+          // Add a small delay to avoid rapid successive calls when switching tabs quickly
+          if (visibilityChangeTimeout) {
+            clearTimeout(visibilityChangeTimeout)
+          }
+
+          visibilityChangeTimeout = setTimeout(() => {
+            fetchGameData()
+            lastFetchTime = Date.now()
+          }, 1000) // 1 second delay
+        }
       }
     }
 
     const handlePageShow = (event: Event) => {
       const pageEvent = event as PageTransitionEvent
-      if ('persisted' in pageEvent) {
-        if (pageEvent.persisted) {
-          fetchGameData()
-        }
-      } else {
+      // Only fetch on actual page reloads, not regular tab switches
+      if ('persisted' in pageEvent && pageEvent.persisted) {
         fetchGameData()
+        lastFetchTime = Date.now()
       }
     }
 
@@ -309,6 +356,9 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('pageshow', handlePageShow)
+      if (visibilityChangeTimeout) {
+        clearTimeout(visibilityChangeTimeout)
+      }
     }
   }, [fetchGameData])
 
@@ -1235,6 +1285,19 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                     className="w-full px-4 py-2 text-left text-sm hover:bg-red-900/30 text-red-400 disabled:opacity-50"
                   >
                     Remove from Game
+                  </button>
+                  <button
+                    onClick={() => {
+                      const playerUrl = `${appOrigin}/game/play/${encodeURIComponent(playerMenuState.player.id)}`
+                      navigator.clipboard.writeText(playerUrl).then(() => {
+                        toast.success(`Copied URL for ${playerMenuState.player.name}`)
+                      }).catch(() => {
+                        toast.error('Failed to copy URL')
+                      })
+                    }}
+                    className="w-full px-4 py-2 text-left text-sm hover:bg-green-900/30 text-green-300"
+                  >
+                    📋 Copy Player URL
                   </button>
                 </div>
                 <div className="border-t border-white/10 px-4 py-2 text-right">
