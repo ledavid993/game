@@ -311,13 +311,6 @@ export const VotingInterface = ({ player, gameCode, availableTargets, onActionCo
   // Only show alive players (excluding self)
   const alivePlayers = availableTargets.filter(p => p.isAlive && p.id !== player.id)
 
-  console.log('VotingInterface Debug:', {
-    availableTargets: availableTargets.length,
-    alivePlayers: alivePlayers.length,
-    playerId: player.id,
-    allPlayers: availableTargets.map(p => ({ id: p.id, name: p.name, isAlive: p.isAlive }))
-  })
-
   const handleVote = async () => {
     if (!selectedTarget || isVoting) return
 
@@ -362,28 +355,72 @@ export const VotingInterface = ({ player, gameCode, availableTargets, onActionCo
       {alivePlayers.length === 0 ? (
         <p className="text-manor-parchment/60 italic">No players available to vote for.</p>
       ) : (
-        <div className="space-y-3">
-          <select
-            value={selectedTarget}
-            onChange={(e) => setSelectedTarget(e.target.value)}
-            className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
-            disabled={isVoting}
-          >
-            <option value="">Select player to vote for...</option>
+        <div className="space-y-4">
+          {/* Player Cards Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {alivePlayers.map((target) => (
-              <option key={target.id} value={target.id}>
-                {target.name}
-              </option>
-            ))}
-          </select>
+              <button
+                key={target.id}
+                onClick={() => setSelectedTarget(target.id)}
+                disabled={isVoting}
+                className={`relative group p-4 rounded-xl border-2 transition-all duration-200 ${
+                  selectedTarget === target.id
+                    ? 'border-purple-400 bg-purple-500/20 shadow-lg shadow-purple-500/30'
+                    : 'border-white/20 bg-black/30 hover:border-purple-300/50 hover:bg-purple-500/10'
+                } ${isVoting ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                {/* Selected indicator */}
+                {selectedTarget === target.id && (
+                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">✓</span>
+                  </div>
+                )}
 
-          <button
-            onClick={handleVote}
-            disabled={!selectedTarget || isVoting}
-            className="w-full rounded-lg bg-purple-600 px-6 py-3 font-semibold text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-purple-500/20"
-          >
-            {isVoting ? 'Casting Vote...' : 'Cast Vote'}
-          </button>
+                {/* Player avatar placeholder */}
+                <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-gradient-to-br from-purple-400/30 to-purple-600/30 flex items-center justify-center border border-white/20">
+                  <span className="text-xl">👤</span>
+                </div>
+
+                {/* Player name */}
+                <h4 className="font-manor text-sm uppercase tracking-[0.1em] text-center text-white/90 leading-tight">
+                  {target.name}
+                </h4>
+
+                {/* Status indicator */}
+                <div className="mt-2 flex justify-center">
+                  <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Sticky Vote Button */}
+          {selectedTarget && (
+            <>
+              {/* Fixed sticky button at bottom */}
+              <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black via-black/95 to-transparent p-4 pb-6">
+                <div className="max-w-5xl mx-auto">
+                  <button
+                    onClick={handleVote}
+                    disabled={!selectedTarget || isVoting}
+                    className="w-full px-8 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-purple-700 text-white font-semibold shadow-lg shadow-purple-500/30 hover:from-purple-700 hover:to-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 text-lg"
+                  >
+                    {isVoting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        Casting Vote...
+                      </span>
+                    ) : (
+                      `Vote to Eliminate ${alivePlayers.find(p => p.id === selectedTarget)?.name}`
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {/* Spacer to prevent content from being hidden behind sticky button */}
+              <div className="h-20"></div>
+            </>
+          )}
         </div>
       )}
     </div>

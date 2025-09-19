@@ -9,6 +9,8 @@ export interface Player {
   socketId?: string;
   deviceType?: 'mobile' | 'desktop' | 'tv';
   joinedAt: number;
+  cardRevealsRemaining?: number;
+  isCardRevealed?: boolean;
 }
 
 export interface GameState {

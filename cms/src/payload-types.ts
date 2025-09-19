@@ -224,6 +224,14 @@ export interface GamePlayer {
   cooldownExpiresAt?: string | null;
   lastKillAt?: string | null;
   kills?: number | null;
+  /**
+   * Number of times this player can still reveal their card (flip it back to mystery)
+   */
+  cardRevealsRemaining?: number | null;
+  /**
+   * Whether the card is currently showing the role (true) or mystery side (false)
+   */
+  isCardRevealed?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -471,6 +479,8 @@ export interface GamePlayersSelect<T extends boolean = true> {
   cooldownExpiresAt?: T;
   lastKillAt?: T;
   kills?: T;
+  cardRevealsRemaining?: T;
+  isCardRevealed?: T;
   updatedAt?: T;
   createdAt?: T;
 }

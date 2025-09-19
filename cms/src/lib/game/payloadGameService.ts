@@ -134,6 +134,8 @@ function toPlayer(doc: GamePlayer): Player {
     socketId: doc.socketId ?? undefined,
     deviceType: doc.deviceType && doc.deviceType !== 'unknown' ? doc.deviceType : undefined,
     joinedAt,
+    cardRevealsRemaining: doc.cardRevealsRemaining ?? 3,
+    isCardRevealed: doc.isCardRevealed ?? false,
   }
 }
 

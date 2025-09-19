@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import type { CooldownStatus, Player } from '@/app/lib/game/types'
 import { ROLE_LABELS, isMurdererRole } from '@/app/lib/game/roles'
@@ -17,6 +17,7 @@ interface RoleCardProps {
   cooldownTimer: number
   onFlip?: (isFlipped: boolean) => void
   showScrollIndicator?: boolean
+  gameCode?: string
 }
 
 const getRoleEmoji = (role: string) => {
@@ -56,13 +57,76 @@ export function RoleCard({
   cooldownTimer,
   onFlip,
   showScrollIndicator = false,
+  gameCode,
 }: RoleCardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
+  const [isFlipping, setIsFlipping] = useState(false)
+  const [revealsRemaining, setRevealsRemaining] = useState(player.cardRevealsRemaining ?? 3)
 
-  const handleFlip = () => {
-    const newFlippedState = !isFlipped
-    setIsFlipped(newFlippedState)
-    onFlip?.(newFlippedState)
+  // Sync reveals remaining with player data
+  useEffect(() => {
+    setRevealsRemaining(player.cardRevealsRemaining ?? 3)
+  }, [player.cardRevealsRemaining])
+
+  // Auto-hide card after 10 seconds when revealed and decrement reveals
+  useEffect(() => {
+    if (isFlipped && gameCode) {
+      const timer = setTimeout(async () => {
+        // Call API to decrement reveal count
+        try {
+          const response = await fetch('/api/v1/game/flip-card', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              playerCode: player.id,
+              gameCode: gameCode,
+            }),
+          })
+
+          const result = await response.json()
+          if (response.ok && result.success) {
+            setRevealsRemaining(result.data.cardRevealsRemaining)
+          }
+        } catch (error) {
+          console.error('Error auto-hiding card:', error)
+        }
+
+        setIsFlipped(false)
+        onFlip?.(false)
+      }, 10000) // 10 seconds
+
+      return () => clearTimeout(timer)
+    }
+  }, [isFlipped, gameCode, player.id, onFlip])
+
+  const handleFlip = async () => {
+    if (isFlipping || !gameCode) return
+
+    // Only allow revealing the card - hiding will happen automatically after 10 seconds
+    if (isFlipped) {
+      // Card is already revealed, just wait for auto-hide
+      return
+    }
+
+    // Check if player has reveals remaining
+    if (revealsRemaining <= 0) {
+      // Show error message that no reveals are left
+      return
+    }
+
+    setIsFlipping(true)
+
+    try {
+      // Only reveal the card, never manually hide it
+      setIsFlipped(true)
+      onFlip?.(true)
+    } catch (error) {
+      console.error('Error flipping card:', error)
+    } finally {
+      setIsFlipping(false)
+    }
   }
 
   return (
@@ -73,7 +137,14 @@ export function RoleCard({
       transition={{ duration: 0.6, ease: 'easeOut' }}
       className="perspective-1000 w-full h-screen relative"
     >
-      <div className="relative w-full h-full cursor-pointer" onClick={handleFlip}>
+      <div
+        className={`relative w-full h-full ${
+          isFlipping ? 'cursor-wait' :
+          isFlipped ? 'cursor-default' :
+          revealsRemaining <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
+        }`}
+        onClick={handleFlip}
+      >
         {/* Card Container */}
         <div className="absolute inset-0 w-full h-full">
           {/* Front of Card (Mystery) - Shows by default */}
@@ -90,7 +161,23 @@ export function RoleCard({
               <h2 className="font-manor text-4xl uppercase tracking-[0.25em] text-white mb-4">
                 Mystery Role
               </h2>
-              <p className="text-manor-parchment/70 text-lg">Click to reveal your identity</p>
+              <p className="text-manor-parchment/70 text-lg">
+                {revealsRemaining > 0 ? 'Click to reveal your identity' : 'No more reveals remaining'}
+              </p>
+              {revealsRemaining > 0 ? (
+                <div className="mt-4 space-y-2">
+                  <p className="text-manor-parchment/50 text-sm">
+                    Reveals remaining: {revealsRemaining}
+                  </p>
+                  <p className="text-manor-parchment/40 text-xs">
+                    Will auto-hide after 10 seconds
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-4 text-red-300/60 text-sm">
+                  You have used all your reveals
+                </p>
+              )}
             </div>
           </div>
 
@@ -163,6 +250,7 @@ export function RoleCard({
               {/* Narrative */}
               <p className="font-body text-xl text-white/90 max-w-2xl mb-8">{narrativeStatus}</p>
 
+
               {/* Cooldown (for murderers) */}
               {cooldownStatus && isMurdererRole(player.role) && (
                 <div className="rounded-xl border border-red-500/30 bg-red-900/20 p-6 text-center">
@@ -178,6 +266,7 @@ export function RoleCard({
               )}
             </div>
           </div>
+
 
           {/* Scroll Down Indicator on Card */}
           {showScrollIndicator && (

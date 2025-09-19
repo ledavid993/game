@@ -32,6 +32,38 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
   const [cooldownTimer, setCooldownTimer] = useState(0)
   const [gameCode, setGameCode] = useState<string | null>(null)
   const [isRoleRevealed, setIsRoleRevealed] = useState(false)
+  const [isLoadingPlayer, setIsLoadingPlayer] = useState(true)
+
+  // Function to refresh player data when needed
+  const refreshPlayerData = async () => {
+    if (!playerId) return
+
+    try {
+      const response = await fetch(
+        `/api/v1/game/state?playerCode=${encodeURIComponent(playerId)}`,
+      )
+      const data = await response.json()
+
+      if (response.ok && data.success) {
+        if (data.playerData) {
+          setCooldownStatus(data.playerData.cooldownStatus)
+          if (data.playerData.player) {
+            setPlayer(data.playerData.player)
+          }
+        }
+
+        if (data.gameState?.players) {
+          setAvailableTargets(data.gameState.players)
+          const currentPlayer = data.gameState.players.find((p: Player) => p.id === playerId)
+          if (currentPlayer) {
+            setPlayer(currentPlayer)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error refreshing player data:', error)
+    }
+  }
 
   useEffect(() => {
     if (isConnected && playerId) {
@@ -52,7 +84,12 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
 
   useEffect(() => {
     const fetchPlayerData = async () => {
-      if (!playerId) return
+      if (!playerId) {
+        setIsLoadingPlayer(false)
+        return
+      }
+
+      setIsLoadingPlayer(true)
 
       try {
         const response = await fetch(
@@ -68,22 +105,18 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           if (data.playerData) {
             setCooldownStatus(data.playerData.cooldownStatus)
 
-            // Set the player from the API response if not already set
-            if (data.playerData.player && !player) {
+            // Set the player from the API response
+            if (data.playerData.player) {
               setPlayer(data.playerData.player)
             }
           }
 
           // Also set the player from the gameState if available
-          if (data.gameState?.players && !player) {
+          if (data.gameState?.players) {
             const currentPlayer = data.gameState.players.find((p: Player) => p.id === playerId)
             if (currentPlayer) {
               setPlayer(currentPlayer)
             }
-          }
-
-          // Set available targets from gameState for all roles (not just murderers)
-          if (data.gameState?.players) {
             setAvailableTargets(data.gameState.players)
           }
         } else if (data.error) {
@@ -91,14 +124,13 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
         }
       } catch (error) {
         console.error('Error fetching player data:', error)
+      } finally {
+        setIsLoadingPlayer(false)
       }
     }
 
     fetchPlayerData()
-    const interval = setInterval(fetchPlayerData, 1200)
-
-    return () => clearInterval(interval)
-  }, [playerId, gameState])
+  }, [playerId])
 
   useEffect(() => {
     const cleanupKilled = onPlayerKilled((killEvent: KillEvent) => {
@@ -199,6 +231,30 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
     return () => clearInterval(interval)
   }, [cooldownStatus])
 
+  // Refresh cooldown status for murderers periodically (less aggressive)
+  useEffect(() => {
+    if (!player || !isMurdererRole(player.role) || !playerId) return
+
+    const refreshCooldown = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/game/state?playerCode=${encodeURIComponent(playerId)}`,
+        )
+        const data = await response.json()
+
+        if (response.ok && data.success && data.playerData) {
+          setCooldownStatus(data.playerData.cooldownStatus)
+        }
+      } catch (error) {
+        // Silently fail, not critical
+      }
+    }
+
+    // Only refresh cooldown every 30 seconds for murderers
+    const interval = setInterval(refreshCooldown, 30000)
+    return () => clearInterval(interval)
+  }, [player, playerId])
+
   const narrativeStatus = useMemo(() => {
     if (!player) return 'Awaiting assignment'
     if (!player.isAlive) return 'Your story ends here. Stay silent.'
@@ -217,6 +273,24 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
             </p>
             <p className="mt-2 font-body text-sm text-manor-parchment/80">
               Keep this window open while we secure your place by the fire.
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (isLoadingPlayer) {
+    return (
+      <div className={`min-h-screen ${className}`}>
+        <div className="flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top,_rgba(177,54,30,0.25),_transparent_55%),_linear-gradient(160deg,_#090b10,_#040508)] p-6">
+          <div className="manor-card text-center">
+            <div className="text-6xl mb-4">🔄</div>
+            <p className="font-manor text-xl uppercase tracking-[0.25em] text-manor-candle">
+              Loading your role...
+            </p>
+            <p className="mt-2 font-body text-sm text-manor-parchment/80">
+              Preparing your place in the manor.
             </p>
           </div>
         </div>
@@ -257,6 +331,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           cooldownTimer={cooldownTimer}
           onFlip={(flipped) => setIsRoleRevealed(flipped)}
           showScrollIndicator={true}
+          gameCode={gameCode || undefined}
         />
 
         {/* Voting Section - Always visible */}
@@ -272,10 +347,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
               player={player}
               gameCode={gameCode || ''}
               availableTargets={availableTargets}
-              onActionComplete={() => {
-                // Refresh player data after action
-                window.location.reload()
-              }}
+              onActionComplete={refreshPlayerData}
             />
           </motion.section>
         </div>
@@ -350,10 +422,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
                   player={player}
                   gameCode={gameCode || ''}
                   availableTargets={gameState?.players || []}
-                  onActionComplete={() => {
-                    // Refresh player data after action
-                    window.location.reload()
-                  }}
+                  onActionComplete={refreshPlayerData}
                 />
               </motion.section>
             )}

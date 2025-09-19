@@ -103,6 +103,23 @@ export const GamePlayers: CollectionConfig = {
       defaultValue: 0,
       min: 0,
     },
+    {
+      name: 'cardRevealsRemaining',
+      type: 'number',
+      defaultValue: 3,
+      min: 0,
+      admin: {
+        description: 'Number of times this player can still reveal their card (flip it back to mystery)',
+      },
+    },
+    {
+      name: 'isCardRevealed',
+      type: 'checkbox',
+      defaultValue: true,
+      admin: {
+        description: 'Whether the card is currently showing the role (true) or mystery side (false)',
+      },
+    },
   ],
   timestamps: true,
 }
