@@ -98,6 +98,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const [currentState, setCurrentState] = useState<SerializedGameState | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadingMessage, setLoadingMessage] = useState('Summoning the spirits...')
+  const [playerAbilityStatus, setPlayerAbilityStatus] = useState<Record<string, any>>({})
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -490,6 +491,30 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     }
   }
 
+  const fetchPlayerAbilityStatus = useCallback(async (playerId: string) => {
+    try {
+      const response = await fetch(`/api/v1/game/player-status?playerId=${playerId}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setPlayerAbilityStatus(prev => ({
+            ...prev,
+            [playerId]: data.abilityStatus
+          }))
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to fetch player ability status:', error)
+    }
+  }, [])
+
   const handleActivePlayerClick = useCallback(
     (player: Player, event: React.MouseEvent<HTMLDivElement>) => {
       const rect = event.currentTarget.getBoundingClientRect()
@@ -528,8 +553,9 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       top = Math.max(top, scrollY + 16)
 
       setPlayerMenuState({ player, position: { top, left } })
+      fetchPlayerAbilityStatus(player.id)
     },
-    [],
+    [fetchPlayerAbilityStatus],
   )
 
   useEffect(() => {
@@ -1106,6 +1132,47 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                   <p className="text-xs text-manor-parchment/60 mt-1">
                     {playerMenuState.player.id}
                   </p>
+                  {playerMenuState.player.role && playerMenuState.player.role !== 'civilian' && (
+                    <div className="mt-2 p-2 rounded bg-white/5 border border-white/10">
+                      <p className="text-xs font-semibold text-manor-candle mb-1">
+                        {playerMenuState.player.role.toUpperCase()} ABILITY STATUS
+                      </p>
+                      {playerAbilityStatus[playerMenuState.player.id] ? (
+                        <div className="text-xs text-manor-parchment/80">
+                          {(() => {
+                            const status = playerAbilityStatus[playerMenuState.player.id]
+                            if (!status.canUse) {
+                              return (
+                                <div className="text-red-300">
+                                  <span className="block">❌ {status.reason}</span>
+                                  {status.cooldownRemaining && (
+                                    <span className="block mt-1">
+                                      ⏱️ {Math.floor(status.cooldownRemaining / 60)}m {status.cooldownRemaining % 60}s
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            } else {
+                              return (
+                                <div className="text-green-300">
+                                  <span className="block">✅ Ready to use</span>
+                                  {status.usesRemaining !== undefined && (
+                                    <span className="block mt-1">
+                                      🎯 {status.usesRemaining} uses remaining
+                                    </span>
+                                  )}
+                                </div>
+                              )
+                            }
+                          })()}
+                        </div>
+                      ) : (
+                        <div className="text-xs text-manor-parchment/60">
+                          <span className="animate-pulse">Loading ability status...</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="py-2 space-y-1">
                   {roleActionOptions
