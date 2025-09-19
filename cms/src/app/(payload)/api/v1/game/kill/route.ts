@@ -1,22 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { recordKillAttempt } from '@/lib/game/payloadGameService';
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { gameCode, murdererCode, victimCode } = body ?? {};
+    const { murdererCode, victimCode } = body ?? {};
 
-    if (!gameCode || !murdererCode || !victimCode) {
+    if (!murdererCode || !victimCode) {
       return NextResponse.json(
-        { success: false, error: 'gameCode, murdererCode, and victimCode are required' },
+        { success: false, error: 'murdererCode and victimCode are required' },
         { status: 400 },
       );
     }
 
-    const result = await recordKillAttempt({ gameCode, murdererCode, victimCode });
+    // Redirect to the new ability API
+    const abilityResponse = await fetch(new URL('/api/v1/game/ability', request.url), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerCode: murdererCode,
+        abilityName: 'kill',
+        targetCode: victimCode,
+      }),
+    });
 
-    const status = result.success ? 200 : 400;
+    const result = await abilityResponse.json();
+    const status = abilityResponse.status;
+
     return NextResponse.json(result, { status });
   } catch (error) {
     console.error('Error recording kill attempt', error);

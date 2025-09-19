@@ -182,7 +182,84 @@ export interface Game {
      * Maximum number of players allowed in the game (1-1000)
      */
     maxPlayers: number;
+    /**
+     * Legacy field - use roleDistribution instead
+     */
     murdererCount: number;
+    /**
+     * Configure the number of each role in the game. Civilians will fill remaining slots.
+     */
+    roleDistribution: {
+      /**
+       * Number of murderers in the game
+       */
+      murderers: number;
+      /**
+       * Number of detectives in the game
+       */
+      detectives: number;
+      /**
+       * Number of revivers in the game
+       */
+      revivers: number;
+      /**
+       * Number of bodyguards in the game
+       */
+      bodyguards: number;
+      /**
+       * Number of vigilantes in the game
+       */
+      vigilantes: number;
+      /**
+       * Number of nurses in the game
+       */
+      nurses: number;
+      /**
+       * Number of doctors in the game
+       */
+      doctors: number;
+      /**
+       * Number of grinch/trolls in the game
+       */
+      trolls: number;
+    };
+    /**
+     * Configure individual ability cooldowns for each role
+     */
+    roleCooldowns: {
+      /**
+       * Cooldown in minutes between murderer kills
+       */
+      murdererKillCooldown: number;
+      /**
+       * Cooldown in minutes between detective investigations
+       */
+      detectiveInvestigateCooldown: number;
+      /**
+       * Cooldown in minutes between reviver abilities
+       */
+      reviverReviveCooldown: number;
+      /**
+       * How long bodyguard protection lasts in minutes
+       */
+      bodyguardProtectionDuration: number;
+      /**
+       * Maximum number of kills a vigilante can make
+       */
+      vigilanteMaxKills: number;
+      /**
+       * Cooldown in minutes between nurse healing abilities
+       */
+      nurseHealCooldown: number;
+      /**
+       * Cooldown in minutes between doctor healing abilities
+       */
+      doctorHealCooldown: number;
+      /**
+       * Cooldown in minutes between grinch mimic abilities
+       */
+      trollMimicCooldown: number;
+    };
   };
   startedAt?: string | null;
   endedAt?: string | null;
@@ -217,7 +294,9 @@ export interface GamePlayer {
    * Unique code for this player in this specific game session
    */
   playerCode: string;
-  role?: ('civilian' | 'murderer' | 'reviver' | 'detective' | 'bodyguard' | 'nurse' | 'vigilante' | 'doctor') | null;
+  role?:
+    | ('civilian' | 'murderer' | 'reviver' | 'detective' | 'bodyguard' | 'nurse' | 'vigilante' | 'doctor' | 'troll')
+    | null;
   isAlive?: boolean | null;
   deviceType?: ('unknown' | 'mobile' | 'desktop' | 'tv') | null;
   socketId?: string | null;
@@ -232,6 +311,77 @@ export interface GamePlayer {
    * Whether the card is currently showing the role (true) or mystery side (false)
    */
   isCardRevealed?: boolean | null;
+  /**
+   * Tracks ability usage count per type (e.g., {"investigate": 2, "revive": 1})
+   */
+  abilityUses?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Tracks cooldown expiry timestamps per ability type
+   */
+  abilityCooldowns?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Player who is currently protecting this player (bodyguard)
+   */
+  protectedBy?: (number | null) | GamePlayer;
+  /**
+   * List of players investigated by this detective
+   */
+  investigatedPlayers?:
+    | {
+        playerCode: string;
+        investigatedAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * List of players revived by this reviver
+   */
+  revivedPlayers?:
+    | {
+        playerCode: string;
+        revivedAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Number of vigilante kills used
+   */
+  vigilanteKills?: number | null;
+  /**
+   * List of players whose abilities were mimicked by this grinch
+   */
+  grinchMimickedPlayers?:
+    | {
+        playerCode: string;
+        mimickedAbility: string;
+        mimickedAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  /**
+   * Timestamp of when this player last used any ability
+   */
+  lastAbilityUsedAt?: string | null;
+  /**
+   * When bodyguard protection expires for this player
+   */
+  protectionExpiresAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -445,6 +595,30 @@ export interface GamesSelect<T extends boolean = true> {
         cooldownMinutes?: T;
         maxPlayers?: T;
         murdererCount?: T;
+        roleDistribution?:
+          | T
+          | {
+              murderers?: T;
+              detectives?: T;
+              revivers?: T;
+              bodyguards?: T;
+              vigilantes?: T;
+              nurses?: T;
+              doctors?: T;
+              trolls?: T;
+            };
+        roleCooldowns?:
+          | T
+          | {
+              murdererKillCooldown?: T;
+              detectiveInvestigateCooldown?: T;
+              reviverReviveCooldown?: T;
+              bodyguardProtectionDuration?: T;
+              vigilanteMaxKills?: T;
+              nurseHealCooldown?: T;
+              doctorHealCooldown?: T;
+              trollMimicCooldown?: T;
+            };
       };
   startedAt?: T;
   endedAt?: T;
@@ -481,6 +655,34 @@ export interface GamePlayersSelect<T extends boolean = true> {
   kills?: T;
   cardRevealsRemaining?: T;
   isCardRevealed?: T;
+  abilityUses?: T;
+  abilityCooldowns?: T;
+  protectedBy?: T;
+  investigatedPlayers?:
+    | T
+    | {
+        playerCode?: T;
+        investigatedAt?: T;
+        id?: T;
+      };
+  revivedPlayers?:
+    | T
+    | {
+        playerCode?: T;
+        revivedAt?: T;
+        id?: T;
+      };
+  vigilanteKills?: T;
+  grinchMimickedPlayers?:
+    | T
+    | {
+        playerCode?: T;
+        mimickedAbility?: T;
+        mimickedAt?: T;
+        id?: T;
+      };
+  lastAbilityUsedAt?: T;
+  protectionExpiresAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

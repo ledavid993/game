@@ -21,13 +21,12 @@ export const DetectiveActions = ({ player, gameCode, availableTargets, onActionC
 
     setIsInvestigating(true)
     try {
-      const response = await fetch('/api/v1/game/role-action', {
+      const response = await fetch('/api/v1/game/ability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gameCode,
           playerCode: player.id,
-          action: 'investigate',
+          abilityName: 'investigate',
           targetCode: selectedTarget,
         }),
       })
@@ -94,13 +93,12 @@ export const ReviverActions = ({ player, gameCode, availableTargets, onActionCom
 
     setIsReviving(true)
     try {
-      const response = await fetch('/api/v1/game/role-action', {
+      const response = await fetch('/api/v1/game/ability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gameCode,
           playerCode: player.id,
-          action: 'revive',
+          abilityName: 'revive',
           targetCode: selectedTarget,
         }),
       })
@@ -170,13 +168,12 @@ export const BodyguardActions = ({ player, gameCode, availableTargets, onActionC
 
     setIsProtecting(true)
     try {
-      const response = await fetch('/api/v1/game/role-action', {
+      const response = await fetch('/api/v1/game/ability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gameCode,
           playerCode: player.id,
-          action: 'protect',
+          abilityName: 'protect',
           targetCode: selectedTarget,
         }),
       })
@@ -242,13 +239,12 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
 
     setIsEliminating(true)
     try {
-      const response = await fetch('/api/v1/game/role-action', {
+      const response = await fetch('/api/v1/game/ability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          gameCode,
           playerCode: player.id,
-          action: 'vigilante_kill',
+          abilityName: 'vigilante_kill',
           targetCode: selectedTarget,
         }),
       })
@@ -300,6 +296,116 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
           {isEliminating ? 'Eliminating...' : 'Eliminate Suspected Murderer'}
         </button>
       </div>
+    </div>
+  )
+}
+
+// Grinch Component - Can mimic other players' abilities
+export const GrinchActions = ({ player, gameCode, availableTargets, onActionComplete }: RoleActionProps) => {
+  const [selectedTarget, setSelectedTarget] = useState('')
+  const [isMimicking, setIsMimicking] = useState(false)
+  const [mimickedPlayers, setMimickedPlayers] = useState<string[]>([])
+
+  // Get list of already mimicked players
+  useEffect(() => {
+    if (player.grinchMimickedPlayers) {
+      const mimicked = (player.grinchMimickedPlayers as any[]).map(m => m.playerCode)
+      setMimickedPlayers(mimicked)
+    }
+  }, [player.grinchMimickedPlayers])
+
+  // Filter out already mimicked players and self
+  const availableToMimic = availableTargets.filter(p =>
+    p.isAlive &&
+    p.id !== player.id &&
+    !mimickedPlayers.includes(p.id)
+  )
+
+  const handleMimic = async () => {
+    if (!selectedTarget || isMimicking) return
+
+    setIsMimicking(true)
+    try {
+      const response = await fetch('/api/v1/game/ability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerCode: player.id,
+          abilityName: 'grinch_mimic',
+          targetCode: selectedTarget,
+        }),
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        toast.success(result.message, { duration: 6000 })
+        setSelectedTarget('')
+        onActionComplete?.()
+      } else {
+        toast.error(result.error || 'Mimic failed')
+      }
+    } catch (error) {
+      toast.error('Mimic failed')
+    } finally {
+      setIsMimicking(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4 rounded-lg border border-green-500/20 bg-green-900/10 p-4">
+      <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-green-300">
+        🎄 Grinch Powers
+      </h3>
+      <p className="text-sm text-green-200/80">
+        Mimic another player's ability and use it once. <span className="text-red-300 font-semibold">Warning:</span> If you mimic a murderer, you will die!
+      </p>
+
+      {availableToMimic.length === 0 ? (
+        <div className="text-center py-4">
+          <p className="text-green-200/60 italic">
+            {mimickedPlayers.length > 0
+              ? "You have mimicked all available players."
+              : "No players available to mimic."
+            }
+          </p>
+          {mimickedPlayers.length > 0 && (
+            <p className="text-xs text-green-300/50 mt-2">
+              Mimicked: {mimickedPlayers.length} players
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <select
+            value={selectedTarget}
+            onChange={(e) => setSelectedTarget(e.target.value)}
+            className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
+            disabled={isMimicking}
+          >
+            <option value="">Select player to mimic...</option>
+            {availableToMimic.map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.name} ({target.role})
+              </option>
+            ))}
+          </select>
+
+          <button
+            onClick={handleMimic}
+            disabled={!selectedTarget || isMimicking}
+            className="w-full rounded-lg bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-green-500/20"
+          >
+            {isMimicking ? 'Mimicking...' : 'Mimic Player Ability'}
+          </button>
+
+          {mimickedPlayers.length > 0 && (
+            <div className="text-xs text-green-300/60 bg-green-900/20 rounded p-2">
+              <p className="font-semibold mb-1">Previously Mimicked:</p>
+              <p>{mimickedPlayers.join(', ')}</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -500,6 +606,8 @@ export const RoleSpecificActions = (props: RoleActionProps) => {
       return <BodyguardActions {...props} />
     case 'vigilante':
       return <VigilanteActions {...props} />
+    case 'troll':
+      return <GrinchActions {...props} />
     case 'nurse':
     case 'doctor':
       return (
@@ -556,6 +664,8 @@ export const RoleActionsComponent = (props: RoleActionProps) => {
         return <BodyguardActions {...props} />
       case 'vigilante':
         return <VigilanteActions {...props} />
+      case 'troll':
+        return <GrinchActions {...props} />
       case 'nurse':
       case 'doctor':
         return (

@@ -14,6 +14,8 @@ import type {
   SerializedGameState,
 } from '@/app/lib/game/types'
 import { SUPPORT_ROLES, type PlayerRole, isMurdererRole } from '@/app/lib/game/roles'
+import type { RoleDistribution, EnhancedGameSettings } from '@/app/lib/game/gameSettings'
+import { getTotalSpecialRoles } from '@/app/lib/game/gameSettings'
 
 const SINGLE_GAME_CODE = 'GAME_MAIN'
 
@@ -88,34 +90,111 @@ type PlayerSeed = {
   kills?: number
 }
 
-function assignRoles<T extends PlayerSeed>(players: T[], murdererCount: number): T[] {
-  if (murdererCount > players.length) {
+function assignRoles<T extends PlayerSeed>(players: T[], roleDistribution: RoleDistribution): T[] {
+  const totalSpecialRoles = getTotalSpecialRoles(roleDistribution)
+
+  if (totalSpecialRoles > players.length) {
     throw new Error(
-      `Cannot assign ${murdererCount} murderers to ${players.length} players. Murderer count must be less than or equal to player count.`,
+      `Cannot assign ${totalSpecialRoles} special roles to ${players.length} players. Total roles must be less than or equal to player count.`,
     )
   }
 
-  if (murdererCount < 1) {
+  if (roleDistribution.murderers < 1) {
     throw new Error('Must have at least 1 murderer')
   }
 
+  // Create role assignments array
+  const roleAssignments: PlayerRole[] = []
+
+  // Add murderers
+  for (let i = 0; i < roleDistribution.murderers; i++) {
+    roleAssignments.push('murderer')
+  }
+
+  // Add detectives
+  for (let i = 0; i < roleDistribution.detectives; i++) {
+    roleAssignments.push('detective')
+  }
+
+  // Add revivers
+  for (let i = 0; i < roleDistribution.revivers; i++) {
+    roleAssignments.push('reviver')
+  }
+
+  // Add bodyguards
+  for (let i = 0; i < roleDistribution.bodyguards; i++) {
+    roleAssignments.push('bodyguard')
+  }
+
+  // Add vigilantes
+  for (let i = 0; i < roleDistribution.vigilantes; i++) {
+    roleAssignments.push('vigilante')
+  }
+
+  // Add nurses
+  for (let i = 0; i < roleDistribution.nurses; i++) {
+    roleAssignments.push('nurse')
+  }
+
+  // Add doctors
+  for (let i = 0; i < roleDistribution.doctors; i++) {
+    roleAssignments.push('doctor')
+  }
+
+  // Add trolls/grinch
+  for (let i = 0; i < roleDistribution.trolls; i++) {
+    roleAssignments.push('troll')
+  }
+
+  // Fill remaining slots with civilians
+  const remainingSlots = players.length - totalSpecialRoles
+  for (let i = 0; i < remainingSlots; i++) {
+    roleAssignments.push('civilian')
+  }
+
+  // Shuffle both players and role assignments
+  const shuffledPlayers = [...players].sort(() => Math.random() - 0.5)
+  const shuffledRoles = [...roleAssignments].sort(() => Math.random() - 0.5)
+
+  // Assign roles to players
+  return shuffledPlayers.map((player, index) => ({
+    ...player,
+    role: shuffledRoles[index],
+  }))
+}
+
+// Legacy function for backwards compatibility
+function assignRolesLegacy<T extends PlayerSeed>(players: T[], murdererCount: number): T[] {
+  const roleDistribution: RoleDistribution = {
+    murderers: murdererCount,
+    detectives: 0,
+    revivers: 0,
+    bodyguards: 0,
+    vigilantes: 0,
+    nurses: 0,
+    doctors: 0,
+    trolls: 0,
+  }
+
+  // Auto-assign one of each support role if we have enough players
   const shuffled = [...players]
-  shuffled.sort(() => Math.random() - 0.5)
+  if (shuffled.length > murdererCount + 1) {
+    const availableSlots = shuffled.length - murdererCount
+    const supportRolesToAssign = Math.min(availableSlots - 1, SUPPORT_ROLES.length) // Leave at least 1 civilian
 
-  let supportIndex = 0
-
-  for (let i = 0; i < shuffled.length; i++) {
-    if (i < murdererCount) {
-      shuffled[i].role = 'murderer'
-    } else if (supportIndex < SUPPORT_ROLES.length) {
-      shuffled[i].role = SUPPORT_ROLES[supportIndex]
-      supportIndex += 1
-    } else {
-      shuffled[i].role = 'civilian'
+    if (supportRolesToAssign > 0 && shuffled.length >= 5) {
+      // Only auto-assign support roles for games with 5+ players
+      roleDistribution.detectives = Math.min(1, supportRolesToAssign)
+    }
+    if (supportRolesToAssign > 1 && shuffled.length >= 8) {
+      roleDistribution.bodyguards = Math.min(1, supportRolesToAssign - 1)
+    }
+    if (supportRolesToAssign > 2 && shuffled.length >= 12) {
+      roleDistribution.revivers = Math.min(1, supportRolesToAssign - 2)
     }
   }
 
-  return shuffled
+  return assignRoles(shuffled, roleDistribution)
 }
 
 function toPlayer(doc: GamePlayer): Player {
@@ -385,7 +464,11 @@ export async function createGameSession({
     kills: 0,
   }))
 
-  const assignedPlayers = assignRoles(playersToCreate, murdererCount)
+  // Use new role distribution if provided, otherwise use legacy assignment
+  const roleDistribution = settings?.roleDistribution
+  const assignedPlayers = roleDistribution
+    ? assignRoles(playersToCreate, roleDistribution)
+    : assignRolesLegacy(playersToCreate, murdererCount)
 
   const createdPlayers: GamePlayer[] = []
 
@@ -550,34 +633,86 @@ export async function resetGame({ gameCode }: ResetGameOptions) {
 
   const game = gameResult.docs[0] as Game
 
-  // First: Remove all game-player associations (but keep players in registry)
-  const existingPlayers = (await payload.find({
-    collection: 'game-players',
-    where: {
-      game: {
-        equals: game.id,
+  try {
+    // First: Delete all player votes for this game
+    const playerVotes = (await payload.find({
+      collection: 'player-votes',
+      where: {
+        game: {
+          equals: game.id,
+        },
       },
-    },
-    depth: 0,
-    limit: 1000,
-  })) as unknown as { docs: GamePlayer[] }
+      depth: 0,
+      limit: 2000,
+    })) as unknown as { docs: any[] }
 
-  await Promise.all(
-    existingPlayers.docs.map(async (player) => {
-      return payload.delete({
-        collection: 'game-players',
-        id: String(player.id),
-      })
-    }),
-  )
+    await Promise.all(
+      playerVotes.docs.map(async (vote) => {
+        return payload.delete({
+          collection: 'player-votes',
+          id: String(vote.id),
+        })
+      }),
+    )
 
-  // Second: Delete the entire game session
-  await payload.delete({
-    collection: 'games',
-    id: String(game.id),
-  })
+    // Second: Delete all regular votes for this game
+    try {
+      const votes = (await payload.find({
+        collection: 'votes',
+        where: {
+          game: {
+            equals: game.id,
+          },
+        },
+        depth: 0,
+        limit: 2000,
+      })) as unknown as { docs: any[] }
 
-  emitToGame(gameCode, 'game-ended', 'reset')
+      await Promise.all(
+        votes.docs.map(async (vote) => {
+          return payload.delete({
+            collection: 'votes',
+            id: String(vote.id),
+          })
+        }),
+      )
+    } catch (error) {
+      // Votes collection might not exist, continue
+      console.warn('Could not delete votes:', error)
+    }
+
+    // Third: Remove all game-player associations
+    const existingPlayers = (await payload.find({
+      collection: 'game-players',
+      where: {
+        game: {
+          equals: game.id,
+        },
+      },
+      depth: 0,
+      limit: 1000,
+    })) as unknown as { docs: GamePlayer[] }
+
+    await Promise.all(
+      existingPlayers.docs.map(async (player) => {
+        return payload.delete({
+          collection: 'game-players',
+          id: String(player.id),
+        })
+      }),
+    )
+
+    // Fourth: Delete the entire game session
+    await payload.delete({
+      collection: 'games',
+      id: String(game.id),
+    })
+
+    emitToGame(gameCode, 'game-ended', 'reset')
+  } catch (error) {
+    console.error('Error resetting game', error)
+    throw error
+  }
 }
 
 export async function recordKillAttempt({

@@ -5,6 +5,7 @@ export const SUPPORT_ROLES = [
   'nurse',
   'vigilante',
   'doctor',
+  'troll',
 ] as const
 
 export type SupportRole = typeof SUPPORT_ROLES[number]
@@ -19,6 +20,7 @@ export const ROLE_LABELS: Record<PlayerRole, string> = {
   nurse: 'Gingerbread',
   vigilante: 'North Star',
   doctor: 'Arctic Elf',
+  troll: 'The Grinch',
 }
 
 export const ROLE_OUTLINE: Record<PlayerRole, 'murderer' | 'support'> = {
@@ -30,6 +32,7 @@ export const ROLE_OUTLINE: Record<PlayerRole, 'murderer' | 'support'> = {
   nurse: 'support',
   vigilante: 'support',
   doctor: 'support',
+  troll: 'support',
 }
 
 export const ALL_ROLES: PlayerRole[] = ['murderer', 'civilian', ...SUPPORT_ROLES]

@@ -47,28 +47,129 @@ export async function PATCH(request: NextRequest) {
           return NextResponse.json({ success: false, error: 'Cannot activate game: No players assigned' }, { status: 400 });
         }
 
+        // Validate role distribution
+        const roleDistribution = game.settings?.roleDistribution;
         const murdererCount = game.settings?.murdererCount || 1;
 
-        if (murdererCount > assignedPlayers.length) {
-          return NextResponse.json({
-            success: false,
-            error: `Cannot activate game: Need ${murdererCount} murderers but only ${assignedPlayers.length} players assigned`
-          }, { status: 400 });
+        if (roleDistribution) {
+          const { getTotalSpecialRoles } = await import('@/app/lib/game/gameSettings');
+          const totalSpecialRoles = getTotalSpecialRoles(roleDistribution);
+
+          if (totalSpecialRoles > assignedPlayers.length) {
+            return NextResponse.json({
+              success: false,
+              error: `Cannot activate game: Need ${totalSpecialRoles} total roles but only ${assignedPlayers.length} players assigned`
+            }, { status: 400 });
+          }
+
+          if (roleDistribution.murderers < 1) {
+            return NextResponse.json({
+              success: false,
+              error: 'Cannot activate game: Must have at least 1 murderer'
+            }, { status: 400 });
+          }
+        } else {
+          // Legacy validation
+          if (murdererCount > assignedPlayers.length) {
+            return NextResponse.json({
+              success: false,
+              error: `Cannot activate game: Need ${murdererCount} murderers but only ${assignedPlayers.length} players assigned`
+            }, { status: 400 });
+          }
         }
 
-        // Assign roles to players
-        const shuffledPlayers = [...assignedPlayers].sort(() => Math.random() - 0.5);
+        // Assign roles to players using role distribution
+        if (roleDistribution) {
+          // Use new role distribution system
+          const { getTotalSpecialRoles } = await import('@/app/lib/game/gameSettings');
+          const totalSpecialRoles = getTotalSpecialRoles(roleDistribution);
 
-        // Update each player with their assigned role
-        for (let i = 0; i < shuffledPlayers.length; i++) {
-          const player = shuffledPlayers[i];
-          const role = i < murdererCount ? 'murderer' : 'civilian';
+          if (totalSpecialRoles > assignedPlayers.length) {
+            return NextResponse.json({
+              success: false,
+              error: `Cannot assign ${totalSpecialRoles} special roles to ${assignedPlayers.length} players`
+            }, { status: 400 });
+          }
 
-          await payload.update({
-            collection: 'game-players',
-            id: String(player.id),
-            data: { role }
-          });
+          // Create role assignments array
+          const roleAssignments: string[] = [];
+
+          // Add murderers
+          for (let i = 0; i < roleDistribution.murderers; i++) {
+            roleAssignments.push('murderer');
+          }
+
+          // Add detectives
+          for (let i = 0; i < roleDistribution.detectives; i++) {
+            roleAssignments.push('detective');
+          }
+
+          // Add revivers
+          for (let i = 0; i < roleDistribution.revivers; i++) {
+            roleAssignments.push('reviver');
+          }
+
+          // Add bodyguards
+          for (let i = 0; i < roleDistribution.bodyguards; i++) {
+            roleAssignments.push('bodyguard');
+          }
+
+          // Add vigilantes
+          for (let i = 0; i < roleDistribution.vigilantes; i++) {
+            roleAssignments.push('vigilante');
+          }
+
+          // Add nurses
+          for (let i = 0; i < roleDistribution.nurses; i++) {
+            roleAssignments.push('nurse');
+          }
+
+          // Add doctors
+          for (let i = 0; i < roleDistribution.doctors; i++) {
+            roleAssignments.push('doctor');
+          }
+
+          // Add trolls/grinch
+          for (let i = 0; i < roleDistribution.trolls; i++) {
+            roleAssignments.push('troll');
+          }
+
+          // Fill remaining slots with civilians
+          const remainingSlots = assignedPlayers.length - totalSpecialRoles;
+          for (let i = 0; i < remainingSlots; i++) {
+            roleAssignments.push('civilian');
+          }
+
+          // Shuffle both players and role assignments
+          const shuffledPlayers = [...assignedPlayers].sort(() => Math.random() - 0.5);
+          const shuffledRoles = [...roleAssignments].sort(() => Math.random() - 0.5);
+
+          // Update each player with their assigned role
+          for (let i = 0; i < shuffledPlayers.length; i++) {
+            const player = shuffledPlayers[i];
+            const role = shuffledRoles[i];
+
+            await payload.update({
+              collection: 'game-players',
+              id: String(player.id),
+              data: { role }
+            });
+          }
+        } else {
+          // Fallback to legacy assignment (murderers and civilians only)
+          const shuffledPlayers = [...assignedPlayers].sort(() => Math.random() - 0.5);
+
+          // Update each player with their assigned role
+          for (let i = 0; i < shuffledPlayers.length; i++) {
+            const player = shuffledPlayers[i];
+            const role = i < murdererCount ? 'murderer' : 'civilian';
+
+            await payload.update({
+              collection: 'game-players',
+              id: String(player.id),
+              data: { role }
+            });
+          }
         }
 
         updateData.startedAt = new Date().toISOString();

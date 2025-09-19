@@ -64,6 +64,7 @@ export const GamePlayers: CollectionConfig = {
         { label: 'Gingerbread', value: 'nurse' },
         { label: 'North Star', value: 'vigilante' },
         { label: 'Arctic Elf', value: 'doctor' },
+        { label: 'The Grinch', value: 'troll' },
       ],
     },
     {
@@ -118,6 +119,115 @@ export const GamePlayers: CollectionConfig = {
       defaultValue: true,
       admin: {
         description: 'Whether the card is currently showing the role (true) or mystery side (false)',
+      },
+    },
+    {
+      name: 'abilityUses',
+      type: 'json',
+      defaultValue: {},
+      admin: {
+        description: 'Tracks ability usage count per type (e.g., {"investigate": 2, "revive": 1})',
+      },
+    },
+    {
+      name: 'abilityCooldowns',
+      type: 'json',
+      defaultValue: {},
+      admin: {
+        description: 'Tracks cooldown expiry timestamps per ability type',
+      },
+    },
+    {
+      name: 'protectedBy',
+      type: 'relationship',
+      relationTo: 'game-players',
+      admin: {
+        description: 'Player who is currently protecting this player (bodyguard)',
+      },
+    },
+    {
+      name: 'investigatedPlayers',
+      type: 'array',
+      fields: [
+        {
+          name: 'playerCode',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'investigatedAt',
+          type: 'date',
+          required: true,
+        },
+      ],
+      admin: {
+        description: 'List of players investigated by this detective',
+      },
+    },
+    {
+      name: 'revivedPlayers',
+      type: 'array',
+      fields: [
+        {
+          name: 'playerCode',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'revivedAt',
+          type: 'date',
+          required: true,
+        },
+      ],
+      admin: {
+        description: 'List of players revived by this reviver',
+      },
+    },
+    {
+      name: 'vigilanteKills',
+      type: 'number',
+      defaultValue: 0,
+      min: 0,
+      admin: {
+        description: 'Number of vigilante kills used',
+      },
+    },
+    {
+      name: 'grinchMimickedPlayers',
+      type: 'array',
+      fields: [
+        {
+          name: 'playerCode',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'mimickedAbility',
+          type: 'text',
+          required: true,
+        },
+        {
+          name: 'mimickedAt',
+          type: 'date',
+          required: true,
+        },
+      ],
+      admin: {
+        description: 'List of players whose abilities were mimicked by this grinch',
+      },
+    },
+    {
+      name: 'lastAbilityUsedAt',
+      type: 'date',
+      admin: {
+        description: 'Timestamp of when this player last used any ability',
+      },
+    },
+    {
+      name: 'protectionExpiresAt',
+      type: 'date',
+      admin: {
+        description: 'When bodyguard protection expires for this player',
       },
     },
   ],

@@ -31,6 +31,7 @@ const getRoleEmoji = (role: string) => {
     nurse: '🍪',
     vigilante: '⭐',
     doctor: '🧊',
+    troll: '👹',
   }
   return roleEmojis[role as keyof typeof roleEmojis] || '❓'
 }
@@ -45,6 +46,7 @@ const getRoleColors = (role: string) => {
     nurse: 'from-cyan-500/30 via-cyan-600/20 to-cyan-800/30',
     vigilante: 'from-red-500/30 via-orange-600/20 to-red-800/30',
     doctor: 'from-cyan-500/30 via-blue-600/20 to-cyan-800/30',
+    troll: 'from-green-500/30 via-purple-600/20 to-green-800/30',
   }
   return (
     roleColors[role as keyof typeof roleColors] || 'from-gray-500/30 via-gray-600/20 to-gray-800/30'

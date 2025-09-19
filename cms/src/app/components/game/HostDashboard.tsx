@@ -15,6 +15,7 @@ import { useSocket } from './useSocket'
 import type { PlayerData } from './PlayerCard'
 import type { KillEvent, Player, SerializedGameState, StartGameRequest } from '@/app/lib/game/types'
 import { ROLE_LABELS, SUPPORT_ROLES, type PlayerRole, isMurdererRole } from '@/app/lib/game/roles'
+import { DEFAULT_ROLE_DISTRIBUTION, DEFAULT_ROLE_COOLDOWNS } from '@/app/lib/game/gameSettings'
 
 type PlayerLinkInfo = {
   id: string
@@ -51,6 +52,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     maxPlayers: 100,
     cooldownMinutes: 10,
     murdererCount: 1,
+    roleDistribution: DEFAULT_ROLE_DISTRIBUTION,
+    roleCooldowns: DEFAULT_ROLE_COOLDOWNS,
   })
 
   // Save settings to database when they change
@@ -142,10 +145,11 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     if (!playerLinkSearch.trim()) return entries
 
     const term = playerLinkSearch.toLowerCase()
-    return entries.filter((info) =>
-      info.name.toLowerCase().includes(term) ||
-      (info.username && info.username.toLowerCase().includes(term)) ||
-      info.id.toLowerCase().includes(term)
+    return entries.filter(
+      (info) =>
+        info.name.toLowerCase().includes(term) ||
+        (info.username && info.username.toLowerCase().includes(term)) ||
+        info.id.toLowerCase().includes(term),
     )
   }, [playerLinks, playerLinkSearch])
 
@@ -198,16 +202,13 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     setLoadingMessage('Connecting to the manor...')
 
     try {
-      const stateResponse = await fetch(
-        `/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`,
-        {
-          cache: 'no-store',
-          headers: {
-            'Cache-Control': 'no-cache',
-            Pragma: 'no-cache',
-          },
+      const stateResponse = await fetch(`/api/v1/game/state?gameCode=GAME_MAIN&_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
         },
-      )
+      })
 
       if (stateResponse.ok) {
         const stateData = await stateResponse.json()
@@ -222,6 +223,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               maxPlayers: state.settings.maxPlayers,
               cooldownMinutes: state.settings.cooldownMinutes,
               murdererCount: state.settings.murdererCount,
+              roleDistribution: (state.settings as any).roleDistribution || DEFAULT_ROLE_DISTRIBUTION,
+              roleCooldowns: (state.settings as any).roleCooldowns || DEFAULT_ROLE_COOLDOWNS,
             })
           }
         }
@@ -313,6 +316,25 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   }, [gameState])
 
   const activeState = currentState ?? gameState ?? null
+
+  // Calculate total special roles needed
+  const getTotalSpecialRolesNeeded = () => {
+    if (gameSettings.roleDistribution) {
+      return (
+        gameSettings.roleDistribution.murderers +
+        gameSettings.roleDistribution.detectives +
+        gameSettings.roleDistribution.revivers +
+        gameSettings.roleDistribution.bodyguards +
+        gameSettings.roleDistribution.vigilantes +
+        gameSettings.roleDistribution.nurses +
+        gameSettings.roleDistribution.doctors +
+        gameSettings.roleDistribution.trolls
+      )
+    }
+    return gameSettings.murdererCount || 1
+  }
+
+  const totalSpecialRolesNeeded = getTotalSpecialRolesNeeded()
 
   // Debug logging
   useEffect(() => {
@@ -468,44 +490,47 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     }
   }
 
-  const handleActivePlayerClick = useCallback((player: Player, event: React.MouseEvent<HTMLDivElement>) => {
-    const rect = event.currentTarget.getBoundingClientRect()
-    const scrollY = window.scrollY || document.documentElement.scrollTop
-    const scrollX = window.scrollX || document.documentElement.scrollLeft
-    const menuWidth = 240
-    const menuHeight = 220 // Updated to account for vote button
+  const handleActivePlayerClick = useCallback(
+    (player: Player, event: React.MouseEvent<HTMLDivElement>) => {
+      const rect = event.currentTarget.getBoundingClientRect()
+      const scrollY = window.scrollY || document.documentElement.scrollTop
+      const scrollX = window.scrollX || document.documentElement.scrollLeft
+      const menuWidth = 240
+      const menuHeight = 220 // Updated to account for vote button
 
-    let left = rect.left + scrollX
-    let top = rect.bottom + scrollY + 8
+      let left = rect.left + scrollX
+      let top = rect.bottom + scrollY + 8
 
-    // Ensure menu stays within viewport bounds
-    const viewportWidth = window.innerWidth
-    const viewportHeight = window.innerHeight
+      // Ensure menu stays within viewport bounds
+      const viewportWidth = window.innerWidth
+      const viewportHeight = window.innerHeight
 
-    // Adjust horizontal position if menu would overflow
-    if (left + menuWidth > scrollX + viewportWidth) {
-      left = Math.max(scrollX + 16, scrollX + viewportWidth - menuWidth - 16)
-    }
-
-    // Ensure menu doesn't go off the left edge
-    left = Math.max(left, scrollX + 16)
-
-    // Adjust vertical position if menu would overflow
-    if (top + menuHeight > scrollY + viewportHeight) {
-      // Try to position above the clicked element
-      top = rect.top + scrollY - menuHeight - 8
-
-      // If still doesn't fit, position at the bottom of viewport
-      if (top < scrollY + 16) {
-        top = scrollY + viewportHeight - menuHeight - 16
+      // Adjust horizontal position if menu would overflow
+      if (left + menuWidth > scrollX + viewportWidth) {
+        left = Math.max(scrollX + 16, scrollX + viewportWidth - menuWidth - 16)
       }
-    }
 
-    // Ensure menu doesn't go off the top edge
-    top = Math.max(top, scrollY + 16)
+      // Ensure menu doesn't go off the left edge
+      left = Math.max(left, scrollX + 16)
 
-    setPlayerMenuState({ player, position: { top, left } })
-  }, [])
+      // Adjust vertical position if menu would overflow
+      if (top + menuHeight > scrollY + viewportHeight) {
+        // Try to position above the clicked element
+        top = rect.top + scrollY - menuHeight - 8
+
+        // If still doesn't fit, position at the bottom of viewport
+        if (top < scrollY + 16) {
+          top = scrollY + viewportHeight - menuHeight - 16
+        }
+      }
+
+      // Ensure menu doesn't go off the top edge
+      top = Math.max(top, scrollY + 16)
+
+      setPlayerMenuState({ player, position: { top, left } })
+    },
+    [],
+  )
 
   useEffect(() => {
     if (!playerMenuState) return
@@ -522,8 +547,12 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     (playersList: SerializedGameState['players'], prevStats: SerializedGameState['stats']) => {
       const alivePlayers = playersList.filter((player) => player.isAlive).length
       const deadPlayers = playersList.length - alivePlayers
-      const murdererCount = playersList.filter((player) => isMurdererRole(player.role ?? 'civilian')).length
-      const allyCount = playersList.filter((player) => !isMurdererRole(player.role ?? 'civilian')).length
+      const murdererCount = playersList.filter((player) =>
+        isMurdererRole(player.role ?? 'civilian'),
+      ).length
+      const allyCount = playersList.filter(
+        (player) => !isMurdererRole(player.role ?? 'civilian'),
+      ).length
 
       return {
         ...prevStats,
@@ -568,16 +597,10 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             updatedPlayers = prev.players.filter((p) => p.id !== player.id)
           } else if (action === 'kill') {
             updatedPlayers = prev.players.map((p) =>
-              p.id === player.id
-                ? { ...p, isAlive: false }
-                : p,
+              p.id === player.id ? { ...p, isAlive: false } : p,
             )
           } else if (action === 'change-role' && role) {
-            updatedPlayers = prev.players.map((p) =>
-              p.id === player.id
-                ? { ...p, role }
-                : p,
-            )
+            updatedPlayers = prev.players.map((p) => (p.id === player.id ? { ...p, role } : p))
           }
 
           return {
@@ -610,60 +633,57 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
     [recalcStats, setAssignedPlayers],
   )
 
-  const handleVoteForPlayer = useCallback(
-    async (targetPlayer: Player) => {
-      setIsPlayerActionPending(true)
-      try {
-        // For host-initiated votes, we'll directly increment the vote count
-        // without requiring a specific voter (simplified voting system)
-        const response = await fetch('/api/v1/game/vote/increment', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            targetCode: targetPlayer.id,
-          }),
-        })
+  const handleVoteForPlayer = useCallback(async (targetPlayer: Player) => {
+    setIsPlayerActionPending(true)
+    try {
+      // For host-initiated votes, we'll directly increment the vote count
+      // without requiring a specific voter (simplified voting system)
+      const response = await fetch('/api/v1/game/vote/increment', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          targetCode: targetPlayer.id,
+        }),
+      })
 
-        const data = await response.json()
+      const data = await response.json()
 
-        if (!response.ok || !data.success) {
-          throw new Error(data.error || 'Failed to record vote')
-        }
-
-        if (data.eliminated) {
-          // Player was eliminated
-          toast.success(data.message, { duration: 6000 })
-
-          // Update the current state to reflect the elimination and vote clearing
-          setCurrentState((prev) => {
-            if (!prev) return prev
-
-            const updatedPlayers = prev.players.map((p) =>
-              p.id === targetPlayer.id ? { ...p, isAlive: false } : p
-            )
-
-            return {
-              ...prev,
-              players: updatedPlayers,
-              stats: recalcStats(updatedPlayers as SerializedGameState['players'], prev.stats),
-            }
-          })
-        } else {
-          toast.success(data.message || `Vote added for ${targetPlayer.name}`)
-        }
-
-        setPlayerMenuState(null)
-      } catch (error) {
-        const message = error instanceof Error ? error.message : 'Failed to record vote'
-        toast.error(message)
-      } finally {
-        setIsPlayerActionPending(false)
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to record vote')
       }
-    },
-    [],
-  )
+
+      if (data.eliminated) {
+        // Player was eliminated
+        toast.success(data.message, { duration: 6000 })
+
+        // Update the current state to reflect the elimination and vote clearing
+        setCurrentState((prev) => {
+          if (!prev) return prev
+
+          const updatedPlayers = prev.players.map((p) =>
+            p.id === targetPlayer.id ? { ...p, isAlive: false } : p,
+          )
+
+          return {
+            ...prev,
+            players: updatedPlayers,
+            stats: recalcStats(updatedPlayers as SerializedGameState['players'], prev.stats),
+          }
+        })
+      } else {
+        toast.success(data.message || `Vote added for ${targetPlayer.name}`)
+      }
+
+      setPlayerMenuState(null)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to record vote'
+      toast.error(message)
+    } finally {
+      setIsPlayerActionPending(false)
+    }
+  }, [])
 
   const handleResetVotes = useCallback(async () => {
     if (!confirm('Are you sure you want to reset all votes? This action cannot be undone.')) {
@@ -702,7 +722,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       </div>
 
       <div className="relative z-10 flex-1 flex flex-col overflow-hidden pt-14 sm:pt-16 overflow-y-auto">
-        <div className="container mx-auto px-4 sm:px-6 py-4 sm:py-6 flex flex-col h-full ">
+        <div className="w-full px-4 sm:px-6 py-4 sm:py-6 flex flex-col h-full ">
           <motion.header
             initial="hidden"
             animate="visible"
@@ -766,35 +786,10 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
             animate="visible"
             variants={sectionVariants}
             transition={{ delay: 0.2, duration: 0.6, ease: 'easeOut' }}
-            className="mx-auto w-full max-w-[90rem] mb-6"
+            className="w-full mb-6 pb-6"
           >
-            <div className="grid grid-cols-1 xl:grid-cols-[1fr_1fr_1fr] gap-6 h-[66vh]">
-              {/* Left Column - Player Registry */}
-              <div className="h-full  scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-                <div className="space-y-6 p-1">
-                  <CollapsiblePlayerList
-                    players={players}
-                    onPlayersChange={setPlayers}
-                    maxPlayers={gameSettings.maxPlayers}
-                    disabled={false}
-                  />
-                </div>
-              </div>
-
-              {/* Middle Column - Game Settings & Assigned Players */}
-              <div className="h-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-                <div className="space-y-6 p-1">
-                  <AssignedPlayersList
-                    registryPlayers={players}
-                    assignedPlayers={assignedPlayers}
-                    onAssignedPlayersChange={setAssignedPlayers}
-                    maxPlayers={gameSettings.maxPlayers}
-                    disabled={false}
-                  />
-                </div>
-              </div>
-
-              {/* Right Column - Game Status & Stats */}
+            <div className="grid grid-cols-1 xl:grid-cols-[2fr_1.5fr_1.5fr] gap-6 h-[66vh]">
+              {/* Left Column - Game Status & Stats */}
               <div className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                 <div className="space-y-6 p-1">
                   {/* Game Settings - only show when not active */}
@@ -819,7 +814,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                           currentState?.isActive
                             ? 'bg-manor-wine/80 text-manor-candle border border-manor-wine/50 cursor-not-allowed opacity-80'
                             : assignedPlayers.length === 0 ||
-                                gameSettings.murdererCount > assignedPlayers.length
+                                totalSpecialRolesNeeded > assignedPlayers.length
                               ? 'bg-gray-600 text-gray-300 border border-gray-500 cursor-not-allowed opacity-70'
                               : 'bg-green-600 hover:bg-green-700 text-white border border-green-500'
                         } ${isUpdatingStatus ? 'cursor-not-allowed opacity-70' : ''}`}
@@ -828,7 +823,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                           isUpdatingStatus ||
                           currentState?.isActive ||
                           assignedPlayers.length === 0 ||
-                          gameSettings.murdererCount > assignedPlayers.length
+                          totalSpecialRolesNeeded > assignedPlayers.length
                         }
                       >
                         {isUpdatingStatus ? (
@@ -846,8 +841,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                           </span>
                         ) : assignedPlayers.length === 0 ? (
                           'Assign Players First'
-                        ) : gameSettings.murdererCount > assignedPlayers.length ? (
-                          `Need ${gameSettings.murdererCount - assignedPlayers.length} More Players`
+                        ) : totalSpecialRolesNeeded > assignedPlayers.length ? (
+                          `Need ${totalSpecialRolesNeeded - assignedPlayers.length} More Players`
                         ) : (
                           'Begin the Performance'
                         )}
@@ -857,8 +852,8 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                           ? 'The show has begun - guests are performing their roles'
                           : assignedPlayers.length === 0
                             ? 'Add players to the guest list first'
-                            : gameSettings.murdererCount > assignedPlayers.length
-                              ? `Need ${gameSettings.murdererCount} total players for ${gameSettings.murdererCount} murderers`
+                            : totalSpecialRolesNeeded > assignedPlayers.length
+                              ? `Need ${totalSpecialRolesNeeded} total players for current role configuration`
                               : 'Ready to raise the curtain and assign roles'}
                       </p>
                     </div>
@@ -925,6 +920,31 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                   </div>
                 </div>
               </div>
+
+              {/* Middle Column - Player Registry */}
+              <div className="h-full  scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                <div className="space-y-6 p-1">
+                  <CollapsiblePlayerList
+                    players={players}
+                    onPlayersChange={setPlayers}
+                    maxPlayers={gameSettings.maxPlayers}
+                    disabled={false}
+                  />
+                </div>
+              </div>
+
+              {/* Right Column - Game Settings & Assigned Players */}
+              <div className="h-full scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                <div className="space-y-6 p-1">
+                  <AssignedPlayersList
+                    registryPlayers={players}
+                    assignedPlayers={assignedPlayers}
+                    onAssignedPlayersChange={setAssignedPlayers}
+                    maxPlayers={gameSettings.maxPlayers}
+                    disabled={false}
+                  />
+                </div>
+              </div>
             </div>
           </motion.section>
 
@@ -935,7 +955,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               animate="visible"
               variants={sectionVariants}
               transition={{ delay: 0.3, duration: 0.6, ease: 'easeOut' }}
-              className="mx-auto w-full max-w-[90rem] mb-6"
+              className="w-full mb-6"
             >
               <div className="manor-card">
                 <div className="flex items-center justify-between mb-4">
@@ -967,7 +987,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               animate="visible"
               variants={sectionVariants}
               transition={{ delay: 0.6, duration: 0.6, ease: 'easeOut' }}
-              className="mx-auto w-full max-w-[90rem] mb-6"
+              className="w-full mb-6"
             >
               <div className="manor-card">
                 <div className="mb-4">
@@ -994,7 +1014,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               animate="visible"
               variants={sectionVariants}
               transition={{ delay: 0.4, duration: 0.6, ease: 'easeOut' }}
-              className="mx-auto w-full max-w-[90rem] mb-6"
+              className="w-full mb-6"
             >
               <div className="manor-card space-y-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -1033,7 +1053,9 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                             {info.name}
                           </p>
                           {info.username && (
-                            <p className="font-body text-sm text-manor-candle font-semibold">@{info.username}</p>
+                            <p className="font-body text-sm text-manor-candle font-semibold">
+                              @{info.username}
+                            </p>
                           )}
                           <p className="text-xs text-manor-parchment/60">{info.roleLabel}</p>
                           <p className="text-xs text-manor-parchment/60">Code: {info.id}</p>
@@ -1089,19 +1111,22 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                   {roleActionOptions
                     .filter((role) => role !== (playerMenuState.player.role ?? 'civilian'))
                     .map((roleOption) => (
-                        <button
-                          key={roleOption}
-                          disabled={isPlayerActionPending}
-                          onClick={() => runPlayerAdminAction(playerMenuState.player, 'change-role', roleOption)}
-                          className={`w-full px-4 py-2 text-left text-sm disabled:opacity-50 ${
-                            roleOption === 'murderer'
-                              ? 'hover:bg-red-900/30 text-red-300'
-                              : 'hover:bg-white/10 text-manor-candle'
-                          }`}
-                        >
-                          Assign {ROLE_LABELS[roleOption]} - {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
-                        </button>
-                      ))}
+                      <button
+                        key={roleOption}
+                        disabled={isPlayerActionPending}
+                        onClick={() =>
+                          runPlayerAdminAction(playerMenuState.player, 'change-role', roleOption)
+                        }
+                        className={`w-full px-4 py-2 text-left text-sm disabled:opacity-50 ${
+                          roleOption === 'murderer'
+                            ? 'hover:bg-red-900/30 text-red-300'
+                            : 'hover:bg-white/10 text-manor-candle'
+                        }`}
+                      >
+                        Assign {ROLE_LABELS[roleOption]} -{' '}
+                        {roleOption.charAt(0).toUpperCase() + roleOption.slice(1)}
+                      </button>
+                    ))}
                   {playerMenuState.player.isAlive && (
                     <button
                       disabled={isPlayerActionPending}
