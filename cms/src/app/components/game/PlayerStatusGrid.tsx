@@ -26,7 +26,7 @@ const densityStyles: Record<
   }
 > = {
   normal: {
-    grid: 'gap-3 px-4 sm:px-6 py-5 sm:py-6 [grid-template-columns:repeat(auto-fit,minmax(145px,1fr))] auto-rows-auto',
+    grid: 'gap-3 px-4 sm:px-6 py-5 sm:py-6 grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6',
     cardPadding: 'p-4',
     emojiSize: 'text-3xl',
     nameSize: 'text-sm',
@@ -34,7 +34,7 @@ const densityStyles: Record<
     murdererSize: 'text-xs',
   },
   dense: {
-    grid: 'gap-2 sm:gap-2.5 px-4 sm:px-6 py-4 sm:py-5 [grid-template-columns:repeat(auto-fit,minmax(110px,1fr))] auto-rows-auto',
+    grid: 'gap-2 sm:gap-2.5 px-4 sm:px-6 py-4 sm:py-5 grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7',
     cardPadding: 'p-3 sm:p-3.5',
     emojiSize: 'text-2xl sm:text-[1.7rem]',
     nameSize: 'text-xs sm:text-sm',
@@ -42,8 +42,8 @@ const densityStyles: Record<
     murdererSize: 'text-[0.6rem]',
   },
   ultra: {
-    grid: 'gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 [grid-template-columns:repeat(auto-fit,minmax(80px,1fr))] auto-rows-auto',
-    cardPadding: 'p-2.5 sm:p-3',
+    grid: 'gap-1.5 sm:gap-2 px-3 sm:px-4 py-3 grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10',
+    cardPadding: 'py-2.5 sm:py-3',
     emojiSize: 'text-xl sm:text-2xl',
     nameSize: 'text-[0.6rem] sm:text-xs',
     statusSize: 'text-[0.5rem] sm:text-[0.55rem] tracking-[0.35em]',
@@ -60,7 +60,11 @@ export function PlayerStatusGrid({
   const alivePlayers = players.filter((player) => player.isAlive)
   const deadPlayers = players.filter((player) => !player.isAlive)
 
-  const sortedPlayers = [...alivePlayers, ...deadPlayers]
+  // Sort each group by display name alphabetically
+  const sortedAlivePlayers = alivePlayers.sort((a, b) => a.name.localeCompare(b.name))
+  const sortedDeadPlayers = deadPlayers.sort((a, b) => a.name.localeCompare(b.name))
+
+  const sortedPlayers = [...sortedAlivePlayers, ...sortedDeadPlayers]
   const styles = densityStyles[density]
   const isUltra = density === 'ultra'
 
