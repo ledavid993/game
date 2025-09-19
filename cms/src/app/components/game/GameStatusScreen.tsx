@@ -20,6 +20,29 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
   const [searchTerm, setSearchTerm] = useState('')
   const stateFingerprintRef = useRef<string>('')
 
+  // Generate stable snowflake and star data that won't change on re-renders
+  const snowflakeData = useMemo(() =>
+    Array.from({ length: 50 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      fontSize: Math.random() * 12 + 16,
+      duration: Math.random() * 10 + 15,
+      delay: Math.random() * 10,
+      xMovement: Math.random() * 100 - 50,
+    })), []
+  )
+
+  const starData = useMemo(() =>
+    Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      left: Math.random() * 100,
+      top: Math.random() * 100,
+      fontSize: Math.random() * 8 + 12,
+      duration: Math.random() * 3 + 2,
+      delay: Math.random() * 5,
+    })), []
+  )
+
   useEffect(() => {
     if (gameState) {
       setCurrentState(gameState)
@@ -106,7 +129,77 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
     filteredPlayers.length >= 60 ? 'ultra' : filteredPlayers.length >= 30 ? 'dense' : 'normal'
 
   return (
-    <div className="w-screen h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(177,54,30,0.2),_transparent_55%),linear-gradient(140deg,_rgba(9,11,16,0.96)_0%,_rgba(17,22,34,0.92)_55%,_rgba(4,5,9,0.98)_100%)]">
+    <div className="w-screen h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(220,38,38,0.15),_transparent_55%),radial-gradient(circle_at_bottom_right,_rgba(34,197,94,0.1),_transparent_45%),linear-gradient(140deg,_rgba(9,11,16,0.96)_0%,_rgba(17,22,34,0.92)_55%,_rgba(4,5,9,0.98)_100%)]">
+      {/* Christmas Snowflakes */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden z-50" aria-hidden>
+        {snowflakeData.map((snowflake) => (
+          <motion.div
+            key={snowflake.id}
+            className="absolute text-white/60"
+            style={{
+              left: `${snowflake.left}%`,
+              fontSize: `${snowflake.fontSize}px`,
+            }}
+            initial={{ y: -20, rotate: 0 }}
+            animate={{
+              y: window.innerHeight + 20,
+              rotate: 360,
+              x: [0, snowflake.xMovement],
+            }}
+            transition={{
+              duration: snowflake.duration,
+              repeat: Infinity,
+              ease: "linear",
+              delay: snowflake.delay,
+            }}
+          >
+            ❄️
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Christmas Decorations */}
+      <div className="absolute inset-0 pointer-events-none z-40" aria-hidden>
+        {/* Top left Christmas tree */}
+        <div className="absolute top-4 left-4 text-green-400/80 text-4xl">🎄</div>
+        {/* Top right wreath */}
+        <div className="absolute top-4 right-4 text-green-400/80 text-4xl">🎁</div>
+        {/* Bottom left star */}
+        <div className="absolute bottom-4 left-4 text-yellow-400/80 text-3xl">⭐</div>
+        {/* Bottom right bells */}
+        <div className="absolute bottom-4 right-4 text-yellow-400/80 text-3xl">🔔</div>
+
+        {/* Holly decorations in corners */}
+        <div className="absolute top-16 left-16 text-green-400/70 text-2xl">🍃</div>
+        <div className="absolute top-16 right-16 text-red-400/70 text-xl">🎀</div>
+        <div className="absolute bottom-16 left-16 text-red-400/70 text-xl">🍎</div>
+        <div className="absolute bottom-16 right-16 text-green-400/70 text-2xl">🌿</div>
+
+        {/* Twinkling stars */}
+        {starData.map((star) => (
+          <motion.div
+            key={`star-${star.id}`}
+            className="absolute text-yellow-200/80"
+            style={{
+              left: `${star.left}%`,
+              top: `${star.top}%`,
+              fontSize: `${star.fontSize}px`,
+            }}
+            animate={{
+              opacity: [0.3, 1, 0.3],
+              scale: [0.8, 1.2, 0.8],
+            }}
+            transition={{
+              duration: star.duration,
+              repeat: Infinity,
+              delay: star.delay,
+            }}
+          >
+            ✨
+          </motion.div>
+        ))}
+      </div>
+
       <div className="absolute inset-0 opacity-20" aria-hidden>
         <div className="h-full w-full bg-[url('https://www.transparenttextures.com/patterns/dark-wood.png')]" />
       </div>
@@ -147,11 +240,11 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
               >
                 <div className="border-b border-white/10 px-6 py-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                   <div>
-                    <h2 className="font-manor text-[clamp(1.2rem,2.1vw,1.6rem)] uppercase tracking-[0.3em] text-manor-candle">
-                      Guest Registry
+                    <h2 className="font-manor text-[clamp(1.2rem,2.1vw,1.6rem)] uppercase tracking-[0.3em] text-manor-candle flex items-center gap-3">
+                      🎄 Guest Registry 🎄
                     </h2>
-                    <p className="text-sm text-manor-parchment/70 mt-1">
-                      {totalPlayers} guests · {aliveCount} alive · {deadCount} departed
+                    <p className="text-sm text-manor-parchment/70 mt-1 flex items-center gap-2">
+                      ❄️ {totalPlayers} guests · {aliveCount} alive · {deadCount} departed ❄️
                     </p>
                   </div>
                   <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
@@ -159,10 +252,10 @@ export default function GameStatusScreen({ initialGameState }: GameStatusScreenP
                       {(['all', 'alive', 'dead'] as const).map((option) => {
                         const label =
                           option === 'all'
-                            ? `All (${totalPlayers})`
+                            ? `🎁 All (${totalPlayers})`
                             : option === 'alive'
-                              ? `Alive (${aliveCount})`
-                              : `Departed (${deadCount})`
+                              ? `🎄 Alive (${aliveCount})`
+                              : `❄️ Departed (${deadCount})`
                         return (
                           <button
                             key={option}
