@@ -311,6 +311,13 @@ export const VotingInterface = ({ player, gameCode, availableTargets, onActionCo
   // Only show alive players (excluding self)
   const alivePlayers = availableTargets.filter(p => p.isAlive && p.id !== player.id)
 
+  console.log('VotingInterface Debug:', {
+    availableTargets: availableTargets.length,
+    alivePlayers: alivePlayers.length,
+    playerId: player.id,
+    allPlayers: availableTargets.map(p => ({ id: p.id, name: p.name, isAlive: p.isAlive }))
+  })
+
   const handleVote = async () => {
     if (!selectedTarget || isVoting) return
 

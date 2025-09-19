@@ -16,6 +16,7 @@ interface RoleCardProps {
   cooldownStatus: CooldownStatus | null
   cooldownTimer: number
   onFlip?: (isFlipped: boolean) => void
+  showScrollIndicator?: boolean
 }
 
 const getRoleEmoji = (role: string) => {
@@ -54,6 +55,7 @@ export function RoleCard({
   cooldownStatus,
   cooldownTimer,
   onFlip,
+  showScrollIndicator = false,
 }: RoleCardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
 
@@ -96,25 +98,39 @@ export function RoleCard({
           <div
             className={`absolute inset-0 w-full h-full border border-white/30 shadow-2xl ${
               isFlipped
-                ? `opacity-100 z-20 bg-gradient-to-br ${getRoleColors(player.role)} backdrop-blur-sm animate-pulse`
-                : 'opacity-0 z-10 bg-gradient-to-br from-gray-900/90 via-black/95 to-gray-800/90'
+                ? `opacity-100 z-20`
+                : 'opacity-0 z-10'
             }`}
             style={{
               transition: 'opacity 0.6s ease-in-out',
-              backgroundImage: isFlipped
-                ? 'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.1) 0%, transparent 50%), radial-gradient(circle at 70% 80%, rgba(255,255,255,0.05) 0%, transparent 50%)'
-                : 'none',
+              background: isFlipped
+                ? `linear-gradient(135deg,
+                    #1a1a2e 0%,
+                    #16213e 15%,
+                    #0f3460 30%,
+                    #533483 45%,
+                    #16213e 60%,
+                    #1a1a2e 75%,
+                    #0f3460 90%,
+                    #1a1a2e 100%),
+                   radial-gradient(circle at 20% 30%, rgba(255,255,255,0.2) 0%, transparent 40%),
+                   radial-gradient(circle at 80% 70%, rgba(255,255,255,0.15) 0%, transparent 40%),
+                   radial-gradient(circle at 40% 80%, rgba(255,255,255,0.1) 0%, transparent 50%)`
+                : 'linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)',
             }}
           >
-            {/* Holographic overlay when revealed */}
+            {/* Glossy overlay when revealed */}
             {isFlipped && (
               <div
-                className="absolute inset-0 rounded-2xl opacity-50"
+                className="absolute inset-0"
                 style={{
-                  background:
-                    'linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%), linear-gradient(-45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%)',
-                  backgroundSize: '20px 20px',
-                  animation: 'shimmer 2s infinite linear',
+                  background: `
+                    linear-gradient(135deg,
+                      transparent 0%,
+                      rgba(255,255,255,0.1) 25%,
+                      rgba(255,255,255,0.2) 50%,
+                      rgba(255,255,255,0.1) 75%,
+                      transparent 100%)`,
                 }}
               />
             )}
@@ -162,6 +178,24 @@ export function RoleCard({
               )}
             </div>
           </div>
+
+          {/* Scroll Down Indicator on Card */}
+          {showScrollIndicator && (
+            <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-40">
+              <motion.div
+                animate={{ y: [0, 8, 0] }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+                className="flex flex-col items-center text-white/80"
+              >
+                <p className="text-sm font-manor uppercase tracking-[0.2em] mb-2">Scroll to Vote</p>
+                <div className="text-2xl">⬇️</div>
+              </motion.div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -171,18 +205,6 @@ export function RoleCard({
         }
         .backface-hidden {
           backface-visibility: hidden;
-        }
-        @keyframes shimmer {
-          0% {
-            background-position:
-              -100% 0,
-              100% 0;
-          }
-          100% {
-            background-position:
-              100% 0,
-              -100% 0;
-          }
         }
       `}</style>
     </motion.section>

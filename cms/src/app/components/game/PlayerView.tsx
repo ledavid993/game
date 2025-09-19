@@ -45,13 +45,8 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
       const currentPlayer = gameState.players.find((p: Player) => p.id === playerId)
       setPlayer(currentPlayer || null)
 
-      if (currentPlayer && isMurdererRole(currentPlayer.role) && currentPlayer.isAlive) {
-        setAvailableTargets(
-          gameState.players.filter((target: Player) => target.id !== playerId && target.isAlive),
-        )
-      } else {
-        setAvailableTargets([])
-      }
+      // Set all players as available targets for voting (will be filtered in components)
+      setAvailableTargets(gameState.players)
     }
   }, [gameState, playerId])
 
@@ -261,6 +256,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           cooldownStatus={cooldownStatus}
           cooldownTimer={cooldownTimer}
           onFlip={(flipped) => setIsRoleRevealed(flipped)}
+          showScrollIndicator={true}
         />
 
         {/* Voting Section - Always visible */}
@@ -275,7 +271,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
             <VotingInterface
               player={player}
               gameCode={gameCode || ''}
-              availableTargets={gameState?.players || []}
+              availableTargets={availableTargets}
               onActionComplete={() => {
                 // Refresh player data after action
                 window.location.reload()
