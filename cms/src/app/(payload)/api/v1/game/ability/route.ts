@@ -11,6 +11,7 @@ import {
 } from '@/lib/game/abilities/RoleAbilities'
 import type { Game, GamePlayer } from '@/payload-types'
 import type { PlayerRole } from '@/app/lib/game/roles'
+import { addAbilityEvent } from '@/app/lib/game/liveFeedEvents'
 
 const SINGLE_GAME_CODE = 'GAME_MAIN'
 
@@ -142,6 +143,15 @@ export async function POST(request: NextRequest) {
     // Execute the ability
     const result = await manager.executeAbility(payload, abilityName, actor, game, target)
 
+    // Add event to LiveFeed immediately
+    addAbilityEvent(
+      actor.displayName,
+      abilityName,
+      target?.displayName,
+      result.success,
+      result.success ? undefined : result.message
+    )
+
     if (result.success) {
       return NextResponse.json({
         success: true,
@@ -152,7 +162,10 @@ export async function POST(request: NextRequest) {
       })
     } else {
       return NextResponse.json(
-        { success: false, error: result.message },
+        {
+          success: false,
+          error: result.message
+        },
         { status: 400 }
       )
     }

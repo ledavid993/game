@@ -12,6 +12,8 @@ import { AssignedPlayersList } from './AssignedPlayersList'
 import { GameSettings, type GameSettingsData } from './GameSettings'
 import { LoadingScreen } from './LoadingScreen'
 import { useSocket } from './useSocket'
+import type { GameEvent } from './LiveFeed'
+import { LiveFeedManager, addGameEvent } from '@/app/lib/game/liveFeedEvents'
 import type { PlayerData } from './PlayerCard'
 import type { KillEvent, Player, SerializedGameState, StartGameRequest } from '@/app/lib/game/types'
 import { ROLE_LABELS, SUPPORT_ROLES, type PlayerRole, isMurdererRole } from '@/app/lib/game/roles'
@@ -99,6 +101,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [loadingMessage, setLoadingMessage] = useState('Summoning the spirits...')
   const [playerAbilityStatus, setPlayerAbilityStatus] = useState<Record<string, any>>({})
+  const [gameEvents, setGameEvents] = useState<GameEvent[]>([])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -318,6 +321,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
 
   const activeState = currentState ?? gameState ?? null
 
+
   // Calculate total special roles needed
   const getTotalSpecialRolesNeeded = () => {
     if (gameSettings.roleDistribution) {
@@ -397,6 +401,13 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
       if (data.success) {
         toast.success(newStatus === 'active' ? 'Game activated!' : 'Game moved to lobby')
 
+        // Add game event
+        if (newStatus === 'active') {
+          addGameEvent('🎮 Game has started! Roles have been assigned.', 'join')
+        } else {
+          addGameEvent('⏸️ Game moved to lobby', 'join')
+        }
+
         // If we just activated the game, immediately fetch updated data
         if (newStatus === 'active') {
           // Fetch updated game state with assigned roles
@@ -472,6 +483,14 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
         setAssignedPlayers([])
         setGameCode(null)
         setCurrentState(null)
+        setGameEvents([])
+
+        // Clear LiveFeed events using the manager
+        LiveFeedManager.getInstance().clearEvents()
+
+        // Add reset event
+        addGameEvent('🔄 Game has been reset', 'join')
+
         toast.success('Game reset - players preserved in registry')
       } else {
         throw new Error('Failed to reset game')
@@ -999,7 +1018,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                 </div>
                 <LiveFeed
                   killEvents={activeState?.killEvents || []}
-                  onPlayerKilled={() => undefined}
+                  gameEvents={gameEvents}
                   className="bg-transparent"
                 />
               </div>
