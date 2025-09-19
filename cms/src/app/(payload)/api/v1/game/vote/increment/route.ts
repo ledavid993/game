@@ -7,10 +7,14 @@ const SINGLE_GAME_CODE = 'GAME_MAIN'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { targetCode } = body
+    const { targetCode, voterCode } = body
 
     if (!targetCode) {
       return NextResponse.json({ success: false, error: 'Target code is required' }, { status: 400 })
+    }
+
+    if (!voterCode) {
+      return NextResponse.json({ success: false, error: 'Voter code is required' }, { status: 400 })
     }
 
     const payload = await getPayloadClient()
@@ -28,6 +32,47 @@ export async function POST(request: NextRequest) {
     }
 
     const game = existingGames.docs[0]
+
+    // Find the voter player
+    const voterResult = (await payload.find({
+      collection: 'game-players',
+      where: {
+        and: [
+          { game: { equals: game.id } },
+          { playerCode: { equals: voterCode } }
+        ]
+      },
+      depth: 0,
+      limit: 1,
+    })) as unknown as { docs: GamePlayer[] }
+
+    if (voterResult.docs.length === 0) {
+      return NextResponse.json({ success: false, error: 'Voter not found in this game' }, { status: 404 })
+    }
+
+    const voter = voterResult.docs[0]
+
+    // Check if voter is alive
+    if (!voter.isAlive) {
+      return NextResponse.json({ success: false, error: 'Dead players cannot vote' }, { status: 400 })
+    }
+
+    // Check if this voter has already voted in this game
+    const existingPlayerVote = (await payload.find({
+      collection: 'player-votes',
+      where: {
+        and: [
+          { game: { equals: game.id } },
+          { voter: { equals: voter.id } }
+        ]
+      },
+      depth: 0,
+      limit: 1,
+    })) as unknown as { docs: any[] }
+
+    if (existingPlayerVote.docs.length > 0) {
+      return NextResponse.json({ success: false, error: 'You have already voted in this round' }, { status: 400 })
+    }
 
     // Find the target player
     const targetResult = (await payload.find({
@@ -47,6 +92,11 @@ export async function POST(request: NextRequest) {
     }
 
     const target = targetResult.docs[0]
+
+    // Check if target is alive
+    if (!target.isAlive) {
+      return NextResponse.json({ success: false, error: 'Cannot vote for eliminated players' }, { status: 400 })
+    }
 
     // Find or create vote count record
     const existingVotesResult = (await payload.find({
@@ -84,6 +134,16 @@ export async function POST(request: NextRequest) {
         },
       })
     }
+
+    // Create individual player vote record
+    await payload.create({
+      collection: 'player-votes',
+      data: {
+        game: game.id,
+        voter: voter.id,
+        target: target.id,
+      },
+    })
 
     // Check if player has reached 70% of alive players (elimination threshold)
     const alivePlayersResult = (await payload.find({

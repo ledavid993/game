@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
 import type { Player } from '@/app/lib/game/types'
 
@@ -308,8 +308,35 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
 export const VotingInterface = ({ player, gameCode, availableTargets, onActionComplete }: RoleActionProps) => {
   const [selectedTarget, setSelectedTarget] = useState('')
   const [isVoting, setIsVoting] = useState(false)
+  const [hasVoted, setHasVoted] = useState(false)
+  const [isCheckingVoteStatus, setIsCheckingVoteStatus] = useState(true)
   // Only show alive players (excluding self)
   const alivePlayers = availableTargets.filter(p => p.isAlive && p.id !== player.id)
+
+  // Check if player has already voted on component mount
+  useEffect(() => {
+    const checkVotingStatus = async () => {
+      if (!player.id || !gameCode) return
+
+      try {
+        const response = await fetch(`/api/v1/game/vote/status?playerCode=${encodeURIComponent(player.id)}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        })
+
+        const result = await response.json()
+        if (response.ok && result.success) {
+          setHasVoted(result.hasVoted)
+        }
+      } catch (error) {
+        console.error('Error checking vote status:', error)
+      } finally {
+        setIsCheckingVoteStatus(false)
+      }
+    }
+
+    checkVotingStatus()
+  }, [player.id, gameCode])
 
   const handleVote = async () => {
     if (!selectedTarget || isVoting) return
@@ -321,6 +348,7 @@ export const VotingInterface = ({ player, gameCode, availableTargets, onActionCo
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           targetCode: selectedTarget,
+          voterCode: player.id,
         }),
       })
 
@@ -332,6 +360,7 @@ export const VotingInterface = ({ player, gameCode, availableTargets, onActionCo
           toast.success(result.message, { duration: 4000 })
         }
         setSelectedTarget('')
+        setHasVoted(true) // Mark as voted after successful vote
         onActionComplete?.()
       } else {
         toast.error(result.error || 'Vote failed')
@@ -352,7 +381,24 @@ export const VotingInterface = ({ player, gameCode, availableTargets, onActionCo
         Vote to eliminate a suspected murderer. If 70% of alive players vote for someone, they will be eliminated.
       </p>
 
-      {alivePlayers.length === 0 ? (
+      {isCheckingVoteStatus ? (
+        <div className="flex items-center justify-center py-8">
+          <div className="flex items-center gap-3 text-purple-300">
+            <div className="w-5 h-5 border-2 border-purple-300/30 border-t-purple-300 rounded-full animate-spin"></div>
+            <span className="text-sm">Checking your voting status...</span>
+          </div>
+        </div>
+      ) : hasVoted ? (
+        <div className="text-center py-8 space-y-3">
+          <div className="text-4xl">✅</div>
+          <h4 className="font-manor text-lg uppercase tracking-[0.2em] text-purple-300">
+            Vote Already Cast
+          </h4>
+          <p className="text-sm text-purple-200/80">
+            You have already voted in this round. Wait for other players to vote or for the next round.
+          </p>
+        </div>
+      ) : alivePlayers.length === 0 ? (
         <p className="text-manor-parchment/60 italic">No players available to vote for.</p>
       ) : (
         <div className="space-y-4">

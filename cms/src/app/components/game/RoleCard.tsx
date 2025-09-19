@@ -18,6 +18,7 @@ interface RoleCardProps {
   onFlip?: (isFlipped: boolean) => void
   showScrollIndicator?: boolean
   gameCode?: string
+  availableTargets?: Player[]
 }
 
 const getRoleEmoji = (role: string) => {
@@ -58,15 +59,29 @@ export function RoleCard({
   onFlip,
   showScrollIndicator = false,
   gameCode,
+  availableTargets = [],
 }: RoleCardProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [isFlipping, setIsFlipping] = useState(false)
   const [revealsRemaining, setRevealsRemaining] = useState(player.cardRevealsRemaining ?? 3)
+  const [showTargets, setShowTargets] = useState(false)
 
   // Sync reveals remaining with player data
   useEffect(() => {
     setRevealsRemaining(player.cardRevealsRemaining ?? 3)
   }, [player.cardRevealsRemaining])
+
+  const isMurderer = isMurdererRole(player.role)
+  const possibleTargets = isMurderer
+    ? availableTargets.filter(p => p.isAlive && p.id !== player.id)
+    : []
+
+  const handleRevealClick = () => {
+    if (isMurderer) {
+      setShowTargets(!showTargets)
+    }
+    // For non-murderers, button does nothing
+  }
 
   // Auto-hide card after 10 seconds when revealed and decrement reveals
   useEffect(() => {
@@ -249,6 +264,36 @@ export function RoleCard({
 
               {/* Narrative */}
               <p className="font-body text-xl text-white/90 max-w-2xl mb-8">{narrativeStatus}</p>
+
+              {/* Reveal Button */}
+              {player.isAlive && (
+                <div className="mb-6 relative">
+                  <button
+                    onClick={handleRevealClick}
+                    className={`px-6 py-3 rounded-xl font-semibold uppercase tracking-wider transition-all ${
+                      isMurderer
+                        ? 'bg-red-600/80 hover:bg-red-500/80 text-white cursor-pointer shadow-lg shadow-red-500/30'
+                        : 'bg-gray-600/50 text-gray-300 cursor-default'
+                    }`}
+                  >
+                    {isMurderer ? 'Reveal Targets' : 'Revealed'}
+                  </button>
+
+                  {/* Targets Dropdown for Murderers */}
+                  {showTargets && isMurderer && possibleTargets.length > 0 && (
+                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-4 bg-black/90 border border-red-500/50 rounded-xl p-4 z-50 min-w-64 max-h-48 overflow-y-auto">
+                      <div className="text-sm text-red-300 font-semibold mb-3 text-center">Available Targets:</div>
+                      <div className="space-y-2">
+                        {possibleTargets.map(target => (
+                          <div key={target.id} className="text-sm text-white py-1 px-2 bg-red-900/30 rounded border border-red-500/30">
+                            • {target.name}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
 
               {/* Cooldown (for murderers) */}

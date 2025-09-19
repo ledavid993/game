@@ -332,6 +332,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
           onFlip={(flipped) => setIsRoleRevealed(flipped)}
           showScrollIndicator={true}
           gameCode={gameCode || undefined}
+          availableTargets={availableTargets}
         />
 
         {/* Voting Section - Always visible */}
