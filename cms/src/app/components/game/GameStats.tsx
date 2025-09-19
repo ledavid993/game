@@ -58,17 +58,11 @@ export function GameStats({ gameState }: GameStatsProps) {
           <span>{status.badge}</span>
           <span className={status.tone}>{status.text}</span>
         </div>
-        <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-manor-parchment/60">
+        <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-manor-parchment/60">
           <div className="rounded-lg border border-white/10 bg-black/20 p-3">
             <div className="text-xs uppercase tracking-[0.3em]">Duration</div>
             <div className="mt-1 text-manor-candle font-semibold">
               {formatDuration(stats.duration)}
-            </div>
-          </div>
-          <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-            <div className="text-xs uppercase tracking-[0.3em]">Murderers</div>
-            <div className="mt-1 text-manor-candle font-semibold">
-              {stats.murderers}/{settings.murdererCount}
             </div>
           </div>
         </div>
@@ -102,18 +96,6 @@ export function GameStats({ gameState }: GameStatsProps) {
           </motion.div>
         ))}
       </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.4 }}
-        className="rounded-xl border border-white/10 bg-black/20 p-4 text-center"
-      >
-        <div className="text-xs uppercase tracking-[0.3em] text-manor-parchment/60">
-          Total Kills
-        </div>
-        <div className="mt-1 text-xl font-semibold text-manor-candle">{stats.totalKills}</div>
-      </motion.div>
     </div>
   )
 }
