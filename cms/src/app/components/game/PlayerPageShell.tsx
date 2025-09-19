@@ -16,7 +16,7 @@ export function PlayerPageShell({ playerId }: PlayerPageShellProps) {
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-white">
         <div className="relative z-10 flex min-h-screen flex-col">
           <main className="flex-1">
-            <PlayerView playerId={playerId} className="mx-auto max-w-4xl px-4 py-8" />
+            <PlayerView playerId={playerId} className="mx-auto max-w-4xl" />
           </main>
         </div>
       </div>
