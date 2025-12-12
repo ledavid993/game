@@ -1187,14 +1187,14 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               }}
             >
               <div
-                className="absolute w-[240px] rounded-xl border border-white/10 bg-[#10121a]/95 shadow-2xl"
+                className="absolute w-[240px] max-h-[80vh] flex flex-col rounded-xl border border-white/10 bg-[#10121a]/95 shadow-2xl"
                 style={{
                   top: playerMenuState.position.top,
                   left: playerMenuState.position.left,
                 }}
                 onClick={(event) => event.stopPropagation()}
               >
-                <div className="px-4 py-3 border-b border-white/10">
+                <div className="px-4 py-3 border-b border-white/10 flex-shrink-0">
                   <p className="font-manor text-sm uppercase tracking-[0.28em] text-manor-candle">
                     {playerMenuState.player.name}
                   </p>
@@ -1243,7 +1243,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                     </div>
                   )}
                 </div>
-                <div className="py-2 space-y-1">
+                <div className="py-2 space-y-1 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
                   {roleActionOptions
                     .filter((role) => role !== (playerMenuState.player.role ?? 'civilian'))
                     .map((roleOption) => (
@@ -1300,7 +1300,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
                     📋 Copy Player URL
                   </button>
                 </div>
-                <div className="border-t border-white/10 px-4 py-2 text-right">
+                <div className="border-t border-white/10 px-4 py-2 text-right flex-shrink-0">
                   <button
                     type="button"
                     onClick={() => !isPlayerActionPending && setPlayerMenuState(null)}
