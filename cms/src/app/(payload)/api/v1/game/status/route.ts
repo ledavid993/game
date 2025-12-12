@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPayloadClient } from '@/lib/game/payloadGameService';
+import { sendPlayerUrls } from '@/lib/game/notifyPlayers';
 import type { Game, GamePlayer, PlayerRegistry } from '@/payload-types';
 
 const SINGLE_GAME_CODE = 'GAME_MAIN';
@@ -119,16 +120,6 @@ export async function PATCH(request: NextRequest) {
             roleAssignments.push('vigilante');
           }
 
-          // Add nurses
-          for (let i = 0; i < roleDistribution.nurses; i++) {
-            roleAssignments.push('nurse');
-          }
-
-          // Add doctors
-          for (let i = 0; i < roleDistribution.doctors; i++) {
-            roleAssignments.push('doctor');
-          }
-
           // Add trolls/grinch
           for (let i = 0; i < roleDistribution.trolls; i++) {
             roleAssignments.push('troll');
@@ -173,6 +164,11 @@ export async function PATCH(request: NextRequest) {
         }
 
         updateData.startedAt = new Date().toISOString();
+
+        // Send SMS notifications to players with phone numbers
+        sendPlayerUrls(game.id).catch((err) => {
+          console.error('Failed to send SMS notifications:', err);
+        });
       }
 
       updateData.status = status;

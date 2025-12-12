@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPayloadClient, generateCode } from '@/lib/game/payloadGameService';
+import { sendPlayerUrls } from '@/lib/game/notifyPlayers';
 import type { Game, GamePlayer, PlayerRegistry } from '@/payload-types';
 
 const SINGLE_GAME_CODE = 'GAME_MAIN';
@@ -132,6 +133,14 @@ export async function POST(request: NextRequest) {
         email: player.email ?? undefined,
         gamesPlayed: player.gamesPlayed || 0,
         assignmentCode: gamePlayer.playerCode,
+      });
+    }
+
+    // If game is already active, send SMS to the newly assigned players (late joiners)
+    if (game.status === 'active' && assignedPlayers.length > 0) {
+      const newPlayerIds = assignedPlayers.map(p => String(p.id));
+      sendPlayerUrls(game.id, newPlayerIds).catch((err) => {
+        console.error('Failed to send SMS to late joiners:', err);
       });
     }
 

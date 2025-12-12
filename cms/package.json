@@ -41,6 +41,7 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.13",
+    "twilio": "^5.10.7",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

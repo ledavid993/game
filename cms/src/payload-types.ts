@@ -294,9 +294,7 @@ export interface GamePlayer {
    * Unique code for this player in this specific game session
    */
   playerCode: string;
-  role?:
-    | ('civilian' | 'murderer' | 'reviver' | 'detective' | 'bodyguard' | 'nurse' | 'vigilante' | 'doctor' | 'troll')
-    | null;
+  role?: ('civilian' | 'murderer' | 'reviver' | 'detective' | 'bodyguard' | 'vigilante' | 'troll') | null;
   isAlive?: boolean | null;
   deviceType?: ('unknown' | 'mobile' | 'desktop' | 'tv') | null;
   socketId?: string | null;
@@ -382,6 +380,14 @@ export interface GamePlayer {
    * When bodyguard protection expires for this player
    */
   protectionExpiresAt?: string | null;
+  /**
+   * Whether the game URL SMS has been sent to this player
+   */
+  smsSent?: boolean | null;
+  /**
+   * When the game URL SMS was sent to this player
+   */
+  smsSentAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -683,6 +689,8 @@ export interface GamePlayersSelect<T extends boolean = true> {
       };
   lastAbilityUsedAt?: T;
   protectionExpiresAt?: T;
+  smsSent?: T;
+  smsSentAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -61,9 +61,7 @@ export const GamePlayers: CollectionConfig = {
         { label: 'Sugarplum', value: 'reviver' },
         { label: 'Candy Cane', value: 'detective' },
         { label: 'Nutcracker', value: 'bodyguard' },
-        { label: 'Gingerbread', value: 'nurse' },
         { label: 'North Star', value: 'vigilante' },
-        { label: 'Arctic Elf', value: 'doctor' },
         { label: 'The Grinch', value: 'troll' },
       ],
     },
@@ -228,6 +226,21 @@ export const GamePlayers: CollectionConfig = {
       type: 'date',
       admin: {
         description: 'When bodyguard protection expires for this player',
+      },
+    },
+    {
+      name: 'smsSent',
+      type: 'checkbox',
+      defaultValue: false,
+      admin: {
+        description: 'Whether the game URL SMS has been sent to this player',
+      },
+    },
+    {
+      name: 'smsSentAt',
+      type: 'date',
+      admin: {
+        description: 'When the game URL SMS was sent to this player',
       },
     },
   ],
