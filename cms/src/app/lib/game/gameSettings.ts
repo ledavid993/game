@@ -6,8 +6,6 @@ export interface RoleDistribution {
   revivers: number
   bodyguards: number
   vigilantes: number
-  nurses: number
-  doctors: number
   trolls: number
 }
 
@@ -17,8 +15,6 @@ export interface RoleCooldowns {
   reviverReviveCooldown: number
   bodyguardProtectionDuration: number
   vigilanteMaxKills: number
-  nurseHealCooldown: number
-  doctorHealCooldown: number
   trollMimicCooldown: number
 }
 
@@ -98,28 +94,6 @@ export const ROLE_INFO: Record<keyof RoleDistribution, RoleInfo> = {
     abilities: ['Kill Suspected Murderers'],
     isSpecial: true,
   },
-  nurses: {
-    key: 'nurses',
-    role: 'nurse',
-    name: 'Nurse',
-    displayName: 'Gingerbread',
-    description: 'Heal injured players and provide medical support.',
-    emoji: '🍪',
-    color: 'cyan',
-    abilities: ['Heal Players'],
-    isSpecial: true,
-  },
-  doctors: {
-    key: 'doctors',
-    role: 'doctor',
-    name: 'Doctor',
-    displayName: 'Arctic Elf',
-    description: 'Advanced healing abilities and medical expertise.',
-    emoji: '🧊',
-    color: 'cyan',
-    abilities: ['Advanced Healing'],
-    isSpecial: true,
-  },
   trolls: {
     key: 'trolls',
     role: 'troll',
@@ -139,8 +113,6 @@ export const DEFAULT_ROLE_DISTRIBUTION: RoleDistribution = {
   revivers: 0,
   bodyguards: 0,
   vigilantes: 0,
-  nurses: 0,
-  doctors: 0,
   trolls: 0,
 }
 
@@ -150,8 +122,6 @@ export const DEFAULT_ROLE_COOLDOWNS: RoleCooldowns = {
   reviverReviveCooldown: 15,
   bodyguardProtectionDuration: 30,
   vigilanteMaxKills: 1,
-  nurseHealCooldown: 20,
-  doctorHealCooldown: 25,
   trollMimicCooldown: 10,
 }
 
@@ -165,8 +135,6 @@ export const GAME_PRESETS = {
       revivers: 0,
       bodyguards: 1,
       vigilantes: 0,
-      nurses: 0,
-      doctors: 0,
       trolls: 0,
     },
     roleCooldowns: DEFAULT_ROLE_COOLDOWNS,
@@ -180,8 +148,6 @@ export const GAME_PRESETS = {
       revivers: 1,
       bodyguards: 1,
       vigilantes: 1,
-      nurses: 0,
-      doctors: 0,
       trolls: 1,
     },
     roleCooldowns: DEFAULT_ROLE_COOLDOWNS,
@@ -195,8 +161,6 @@ export const GAME_PRESETS = {
       revivers: 1,
       bodyguards: 2,
       vigilantes: 1,
-      nurses: 1,
-      doctors: 1,
       trolls: 1,
     },
     roleCooldowns: DEFAULT_ROLE_COOLDOWNS,
@@ -210,8 +174,6 @@ export const GAME_PRESETS = {
       revivers: 2,
       bodyguards: 3,
       vigilantes: 2,
-      nurses: 2,
-      doctors: 2,
       trolls: 2,
     },
     roleCooldowns: DEFAULT_ROLE_COOLDOWNS,
@@ -288,8 +250,6 @@ export function applyCooldownPreset(
     reviverReviveCooldown: Math.round(baseCooldowns.reviverReviveCooldown * multiplier),
     bodyguardProtectionDuration: Math.round(baseCooldowns.bodyguardProtectionDuration * multiplier),
     vigilanteMaxKills: baseCooldowns.vigilanteMaxKills, // Don't modify max kills
-    nurseHealCooldown: Math.round(baseCooldowns.nurseHealCooldown * multiplier),
-    doctorHealCooldown: Math.round(baseCooldowns.doctorHealCooldown * multiplier),
     trollMimicCooldown: Math.round(baseCooldowns.trollMimicCooldown * multiplier),
   }
 }

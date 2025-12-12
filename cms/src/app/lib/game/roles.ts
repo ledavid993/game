@@ -2,9 +2,7 @@ export const SUPPORT_ROLES = [
   'reviver',
   'detective',
   'bodyguard',
-  'nurse',
   'vigilante',
-  'doctor',
   'troll',
 ] as const
 
@@ -17,9 +15,7 @@ export const ROLE_LABELS: Record<PlayerRole, string> = {
   reviver: 'Sugarplum',
   detective: 'Candy Cane',
   bodyguard: 'Nutcracker',
-  nurse: 'Gingerbread',
   vigilante: 'North Star',
-  doctor: 'Arctic Elf',
   troll: 'The Grinch',
 }
 
@@ -29,9 +25,7 @@ export const ROLE_OUTLINE: Record<PlayerRole, 'murderer' | 'support'> = {
   reviver: 'support',
   detective: 'support',
   bodyguard: 'support',
-  nurse: 'support',
   vigilante: 'support',
-  doctor: 'support',
   troll: 'support',
 }
 

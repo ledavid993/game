@@ -165,8 +165,6 @@ export function RoleDistribution({
       revivers: 0,
       bodyguards: 0,
       vigilantes: 0,
-      nurses: 0,
-      doctors: 0,
       trolls: 0,
     })
   }

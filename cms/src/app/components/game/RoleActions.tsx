@@ -608,18 +608,6 @@ export const RoleSpecificActions = (props: RoleActionProps) => {
       return <VigilanteActions {...props} />
     case 'troll':
       return <GrinchActions {...props} />
-    case 'nurse':
-    case 'doctor':
-      return (
-        <div className="space-y-4 rounded-lg border border-cyan-500/20 bg-cyan-900/10 p-4">
-          <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-cyan-300">
-            {player.role === 'nurse' ? '🍪 Gingerbread Powers' : '🧊 Arctic Elf Powers'}
-          </h3>
-          <p className="text-sm text-cyan-200/80">
-            Your healing abilities are being prepared. Stay vigilant and protect the innocent.
-          </p>
-        </div>
-      )
     case 'civilian':
       return (
         <div className="space-y-4 rounded-lg border border-gray-500/20 bg-gray-900/10 p-4">
@@ -666,18 +654,6 @@ export const RoleActionsComponent = (props: RoleActionProps) => {
         return <VigilanteActions {...props} />
       case 'troll':
         return <GrinchActions {...props} />
-      case 'nurse':
-      case 'doctor':
-        return (
-          <div className="space-y-4 rounded-lg border border-cyan-500/20 bg-cyan-900/10 p-4">
-            <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-cyan-300">
-              {player.role === 'nurse' ? '🍪 Gingerbread Powers' : '🧊 Arctic Elf Powers'}
-            </h3>
-            <p className="text-sm text-cyan-200/80">
-              Your healing abilities are being prepared. Stay vigilant and protect the innocent.
-            </p>
-          </div>
-        )
       case 'civilian':
         return (
           <div className="space-y-4 rounded-lg border border-gray-500/20 bg-gray-900/10 p-4">

@@ -113,7 +113,7 @@ export function GameSettings({
             <span className="text-manor-candle">Max Players:</span> {settings.maxPlayers}
           </div>
           <div>
-            <span className="text-manor-candle">Special Roles:</span> {roleDistribution.murderers + roleDistribution.detectives + roleDistribution.revivers + roleDistribution.bodyguards + roleDistribution.vigilantes + roleDistribution.nurses + roleDistribution.doctors + roleDistribution.trolls}
+            <span className="text-manor-candle">Special Roles:</span> {roleDistribution.murderers + roleDistribution.detectives + roleDistribution.revivers + roleDistribution.bodyguards + roleDistribution.vigilantes + roleDistribution.trolls}
           </div>
           <div>
             <span className="text-manor-candle">Civilians:</span> {civilianCount}
@@ -245,7 +245,7 @@ export function GameSettings({
                       </div>
                       <div>
                         <div className="text-xl font-bold text-blue-300">
-                          {roleDistribution.detectives + roleDistribution.revivers + roleDistribution.bodyguards + roleDistribution.vigilantes + roleDistribution.nurses + roleDistribution.doctors + roleDistribution.trolls}
+                          {roleDistribution.detectives + roleDistribution.revivers + roleDistribution.bodyguards + roleDistribution.vigilantes + roleDistribution.trolls}
                         </div>
                         <div className="text-xs text-manor-parchment/60">Special Roles</div>
                       </div>
