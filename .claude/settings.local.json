@@ -4,7 +4,8 @@
       "Bash(tree:*)",
       "Bash(pnpm lint:*)",
       "Bash(cat:*)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(ipconfig getifaddr:*)"
     ],
     "deny": [],
     "ask": []

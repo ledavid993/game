@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, type Variants } from 'framer-motion'
 import toast from 'react-hot-toast'
 
@@ -9,6 +9,7 @@ import type { CooldownStatus, KillAttemptResult, KillEvent, Player } from '@/app
 import { ROLE_LABELS, isMurdererRole } from '@/app/lib/game/roles'
 import { RoleSpecificActions, VotingInterface } from './RoleActions'
 import { RoleCard } from './RoleCard'
+import { DeathOverlay } from './DeathOverlay'
 
 const entranceVariants: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -32,6 +33,8 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
   const [cooldownTimer, setCooldownTimer] = useState(0)
   const [gameCode, setGameCode] = useState<string | null>(null)
   const [isLoadingPlayer, setIsLoadingPlayer] = useState(true)
+  const [showDeathOverlay, setShowDeathOverlay] = useState(false)
+  const wasAliveRef = useRef<boolean | null>(null)
 
   // Function to refresh player data when needed
   const refreshPlayerData = async () => {
@@ -254,6 +257,54 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
     return () => clearInterval(interval)
   }, [player, playerId])
 
+  // Poll for player status every second to detect death in real-time
+  useEffect(() => {
+    if (!playerId || isLoadingPlayer) return
+
+    const pollPlayerStatus = async () => {
+      try {
+        const response = await fetch(
+          `/api/v1/game/player-status?playerId=${encodeURIComponent(playerId)}`,
+        )
+        const data = await response.json()
+
+        if (response.ok && data.success && data.player) {
+          const currentlyAlive = data.player.isAlive
+
+          // Check for death transition: was alive -> now dead
+          if (wasAliveRef.current === true && currentlyAlive === false) {
+            setShowDeathOverlay(true)
+          }
+
+          // Update the ref for next comparison
+          wasAliveRef.current = currentlyAlive
+
+          // Update player state if alive status changed
+          if (player && player.isAlive !== currentlyAlive) {
+            setPlayer((prev) => prev ? { ...prev, isAlive: currentlyAlive } : prev)
+          }
+        }
+      } catch (error) {
+        // Silently fail - polling will retry
+      }
+    }
+
+    // Initialize wasAliveRef with current player state
+    if (player && wasAliveRef.current === null) {
+      wasAliveRef.current = player.isAlive
+    }
+
+    // Poll every second
+    const interval = setInterval(pollPlayerStatus, 1000)
+
+    return () => clearInterval(interval)
+  }, [playerId, isLoadingPlayer, player])
+
+  // Handler to dismiss death overlay
+  const handleDismissDeathOverlay = useCallback(() => {
+    setShowDeathOverlay(false)
+  }, [])
+
   const narrativeStatus = useMemo(() => {
     if (!player) return 'Awaiting assignment'
     if (!player.isAlive) return 'Your story ends here. Stay silent.'
@@ -317,6 +368,13 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
 
   return (
     <div className={`relative min-h-screen overflow-hidden ${className}`}>
+      {/* Death Overlay */}
+      <DeathOverlay
+        isVisible={showDeathOverlay}
+        playerName={player?.name}
+        onDismiss={handleDismissDeathOverlay}
+      />
+
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,rgba(177,54,30,0.16),transparent_45%),radial-gradient(circle_at_80%_0%,rgba(64,19,31,0.28),transparent_55%),linear-gradient(170deg,rgba(9,11,16,0.95)_0%,rgba(16,19,27,0.92)_40%,rgba(6,7,10,0.98)_100%)]" />
       <div className="absolute inset-0 opacity-10" aria-hidden>
         <div className="h-full w-full bg-[url('https://www.transparenttextures.com/patterns/black-linen.png')]" />
