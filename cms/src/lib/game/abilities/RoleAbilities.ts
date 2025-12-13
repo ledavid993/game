@@ -87,7 +87,8 @@ export class MurdererKillAbility implements RoleAbility {
           },
         })
 
-        return { success: false, message: 'Target is protected by a bodyguard' }
+        // Don't reveal WHY the kill failed - just say it failed
+        return { success: false, message: 'Your target slipped away into the shadows...' }
       }
     }
 
