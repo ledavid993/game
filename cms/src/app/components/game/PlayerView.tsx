@@ -479,7 +479,7 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
                 <RoleSpecificActions
                   player={player}
                   gameCode={gameCode || ''}
-                  availableTargets={gameState?.players || []}
+                  availableTargets={availableTargets}
                   onActionComplete={refreshPlayerData}
                 />
               </motion.section>
