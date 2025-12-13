@@ -147,6 +147,36 @@ export function RoleCard({
     }
   }
 
+  // If player is dead, show a simplified "whisper" view
+  if (!player.isAlive) {
+    return (
+      <motion.section
+        initial="hidden"
+        animate="visible"
+        variants={entranceVariants}
+        transition={{ duration: 0.6, ease: 'easeOut' }}
+        className="w-full py-12 px-6"
+      >
+        <div className="max-w-lg mx-auto text-center">
+          <div className="manor-card border-dashed border-red-900/50 bg-black/60">
+            <div className="text-7xl mb-4">💀</div>
+            <h2 className="font-manor text-3xl uppercase tracking-[0.25em] text-red-300/80 mb-3">
+              You Have Fallen
+            </h2>
+            <p className="text-manor-parchment/60 text-base mb-4">
+              Your spirit lingers in the manor. Observe in silence.
+            </p>
+            <div className="inline-block rounded-full border border-red-500/30 bg-red-900/20 px-6 py-2">
+              <span className="font-body text-sm uppercase tracking-wider text-red-300/70">
+                {(ROLE_LABELS[player.role] ?? player.role).toUpperCase()} • ELIMINATED
+              </span>
+            </div>
+          </div>
+        </div>
+      </motion.section>
+    )
+  }
+
   return (
     <motion.section
       initial="hidden"
@@ -159,7 +189,6 @@ export function RoleCard({
         className={`relative w-full h-full ${
           isFlipping ? 'cursor-wait' :
           isFlipped ? 'cursor-default' :
-          !player.isAlive ? 'cursor-not-allowed' :
           revealsRemaining <= 0 ? 'cursor-not-allowed' : 'cursor-pointer'
         }`}
         onClick={handleFlip}

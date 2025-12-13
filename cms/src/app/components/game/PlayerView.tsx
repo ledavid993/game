@@ -294,8 +294,8 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
       wasAliveRef.current = player.isAlive
     }
 
-    // Poll every second
-    const interval = setInterval(pollPlayerStatus, 1000)
+    // Poll every 3 seconds
+    const interval = setInterval(pollPlayerStatus, 3000)
 
     return () => clearInterval(interval)
   }, [playerId, isLoadingPlayer, player])
@@ -485,23 +485,6 @@ export function PlayerView({ playerId, className = '' }: PlayerViewProps) {
               </motion.section>
             )}
 
-            {!player.isAlive && (
-              <motion.section
-                initial="hidden"
-                animate="visible"
-                variants={entranceVariants}
-                transition={{ delay: 0.35, duration: 0.6, ease: 'easeOut' }}
-                className="manor-card space-y-3 border-dashed border-white/20 bg-black/10"
-              >
-                <h2 className="font-manor text-lg uppercase tracking-[0.25em] text-manor-candle">
-                  You Are a Whisper
-                </h2>
-                <p className="font-body text-sm text-manor-parchment/75 md:text-base">
-                  Though your physical form has fallen, you may still observe proceedings. Share no
-                  secrets unless the host invites your spirit to intervene.
-                </p>
-              </motion.section>
-            )}
         </div>
       </div>
     </div>

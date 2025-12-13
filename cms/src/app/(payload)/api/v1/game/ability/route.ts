@@ -159,6 +159,8 @@ export async function POST(request: NextRequest) {
         data: result.data,
         abilityUsed: result.abilityUsed,
         cooldownExpiry: result.cooldownExpiry?.toISOString(),
+        targetRole: result.targetRole,
+        targetName: result.targetName,
       })
     } else {
       return NextResponse.json(

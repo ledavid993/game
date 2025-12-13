@@ -6,7 +6,8 @@
       "Bash(cat:*)",
       "Bash(pnpm add:*)",
       "Bash(ipconfig getifaddr:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

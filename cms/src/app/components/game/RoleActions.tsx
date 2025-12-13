@@ -1,8 +1,9 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import type { Player } from '@/app/lib/game/types'
+import { InvestigationRevealOverlay } from './InvestigationRevealOverlay'
 
 interface RoleActionProps {
   player: Player
@@ -15,9 +16,44 @@ interface RoleActionProps {
 export const DetectiveActions = ({ player, gameCode, availableTargets, onActionComplete }: RoleActionProps) => {
   const [selectedTarget, setSelectedTarget] = useState('')
   const [isInvestigating, setIsInvestigating] = useState(false)
+  const [showReveal, setShowReveal] = useState(false)
+  const [revealData, setRevealData] = useState<{ name: string; role: string } | null>(null)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+
+  // Fetch cooldown status on mount and after actions
+  const fetchCooldown = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/game/ability?playerCode=${encodeURIComponent(player.id)}&abilityName=investigate`)
+      const data = await response.json()
+      if (data.success && data.cooldownRemaining) {
+        setCooldownSeconds(data.cooldownRemaining)
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }, [player.id])
+
+  useEffect(() => {
+    fetchCooldown()
+  }, [fetchCooldown])
+
+  // Countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const interval = setInterval(() => {
+      setCooldownSeconds(prev => Math.max(prev - 1, 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [cooldownSeconds])
+
+  const handleDismissReveal = useCallback(() => {
+    setShowReveal(false)
+    setRevealData(null)
+    onActionComplete?.()
+  }, [onActionComplete])
 
   const handleInvestigate = async () => {
-    if (!selectedTarget || isInvestigating) return
+    if (!selectedTarget || isInvestigating || cooldownSeconds > 0) return
 
     setIsInvestigating(true)
     try {
@@ -33,9 +69,15 @@ export const DetectiveActions = ({ player, gameCode, availableTargets, onActionC
 
       const result = await response.json()
       if (result.success) {
-        toast.success(result.message, { duration: 5000 })
+        // Use targetName and targetRole directly from API response
+        const targetName = result.targetName || availableTargets.find(t => t.id === selectedTarget)?.name || 'Unknown'
+        const targetRole = result.targetRole || 'civilian'
+
+        setRevealData({ name: targetName, role: targetRole })
+        setShowReveal(true)
         setSelectedTarget('')
-        onActionComplete?.()
+        // Refresh cooldown after successful action
+        fetchCooldown()
       } else {
         toast.error(result.error || 'Investigation failed')
       }
@@ -46,39 +88,61 @@ export const DetectiveActions = ({ player, gameCode, availableTargets, onActionC
     }
   }
 
+  const isOnCooldown = cooldownSeconds > 0
+  const cooldownDisplay = isOnCooldown
+    ? `Cooldown: ${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s`
+    : null
+
   return (
-    <div className="space-y-4 rounded-lg border border-blue-500/20 bg-blue-900/10 p-4">
-      <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-blue-300">
-        🍭 Detective Powers
-      </h3>
-      <p className="text-sm text-blue-200/80">
-        Investigate a player to reveal their true role. Use this power wisely.
-      </p>
+    <>
+      <InvestigationRevealOverlay
+        isVisible={showReveal}
+        targetName={revealData?.name || ''}
+        targetRole={revealData?.role || ''}
+        onDismiss={handleDismissReveal}
+      />
 
-      <div className="space-y-3">
-        <select
-          value={selectedTarget}
-          onChange={(e) => setSelectedTarget(e.target.value)}
-          className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
-          disabled={isInvestigating}
-        >
-          <option value="">Select player to investigate...</option>
-          {availableTargets.map((target) => (
-            <option key={target.id} value={target.id}>
-              {target.name}
-            </option>
-          ))}
-        </select>
+      <div className="space-y-4 rounded-lg border border-blue-500/20 bg-blue-900/10 p-4">
+        <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-blue-300">
+          🍭 Detective Powers
+        </h3>
+        <p className="text-sm text-blue-200/80">
+          Investigate a player to reveal their true role. Use this power wisely.
+        </p>
 
-        <button
-          onClick={handleInvestigate}
-          disabled={!selectedTarget || isInvestigating}
-          className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
-        >
-          {isInvestigating ? 'Investigating...' : 'Investigate Player'}
-        </button>
+        {isOnCooldown ? (
+          <div className="text-center py-4">
+            <div className="text-3xl mb-2">⏳</div>
+            <p className="text-blue-300 font-semibold">{cooldownDisplay}</p>
+            <p className="text-sm text-blue-200/60 mt-1">Your investigation powers are recharging...</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <select
+              value={selectedTarget}
+              onChange={(e) => setSelectedTarget(e.target.value)}
+              className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
+              disabled={isInvestigating}
+            >
+              <option value="">Select player to investigate...</option>
+              {availableTargets.filter(t => t.isAlive && t.id !== player.id).map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleInvestigate}
+              disabled={!selectedTarget || isInvestigating}
+              className="w-full rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+            >
+              {isInvestigating ? 'Investigating...' : 'Investigate Player'}
+            </button>
+          </div>
+        )}
       </div>
-    </div>
+    </>
   )
 }
 
@@ -86,10 +150,37 @@ export const DetectiveActions = ({ player, gameCode, availableTargets, onActionC
 export const ReviverActions = ({ player, gameCode, availableTargets, onActionComplete }: RoleActionProps) => {
   const [selectedTarget, setSelectedTarget] = useState('')
   const [isReviving, setIsReviving] = useState(false)
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
   const deadPlayers = availableTargets.filter(p => !p.isAlive)
 
+  // Fetch cooldown status on mount
+  const fetchCooldown = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/game/ability?playerCode=${encodeURIComponent(player.id)}&abilityName=revive`)
+      const data = await response.json()
+      if (data.success && data.cooldownRemaining) {
+        setCooldownSeconds(data.cooldownRemaining)
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }, [player.id])
+
+  useEffect(() => {
+    fetchCooldown()
+  }, [fetchCooldown])
+
+  // Countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const interval = setInterval(() => {
+      setCooldownSeconds(prev => Math.max(prev - 1, 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [cooldownSeconds])
+
   const handleRevive = async () => {
-    if (!selectedTarget || isReviving) return
+    if (!selectedTarget || isReviving || cooldownSeconds > 0) return
 
     setIsReviving(true)
     try {
@@ -107,6 +198,7 @@ export const ReviverActions = ({ player, gameCode, availableTargets, onActionCom
       if (result.success) {
         toast.success(result.message, { duration: 5000 })
         setSelectedTarget('')
+        fetchCooldown()
         onActionComplete?.()
       } else {
         toast.error(result.error || 'Revival failed')
@@ -118,6 +210,11 @@ export const ReviverActions = ({ player, gameCode, availableTargets, onActionCom
     }
   }
 
+  const isOnCooldown = cooldownSeconds > 0
+  const cooldownDisplay = isOnCooldown
+    ? `Cooldown: ${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s`
+    : null
+
   return (
     <div className="space-y-4 rounded-lg border border-green-500/20 bg-green-900/10 p-4">
       <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-green-300">
@@ -127,7 +224,13 @@ export const ReviverActions = ({ player, gameCode, availableTargets, onActionCom
         Bring a fallen player back to life. Choose carefully - this power is precious.
       </p>
 
-      {deadPlayers.length === 0 ? (
+      {isOnCooldown ? (
+        <div className="text-center py-4">
+          <div className="text-3xl mb-2">⏳</div>
+          <p className="text-green-300 font-semibold">{cooldownDisplay}</p>
+          <p className="text-sm text-green-200/60 mt-1">Your revival powers are recharging...</p>
+        </div>
+      ) : deadPlayers.length === 0 ? (
         <p className="text-manor-parchment/60 italic">No fallen players to revive.</p>
       ) : (
         <div className="space-y-3">
@@ -162,6 +265,24 @@ export const ReviverActions = ({ player, gameCode, availableTargets, onActionCom
 export const BodyguardActions = ({ player, gameCode, availableTargets, onActionComplete }: RoleActionProps) => {
   const [selectedTarget, setSelectedTarget] = useState('')
   const [isProtecting, setIsProtecting] = useState(false)
+  const [abilityStatus, setAbilityStatus] = useState<{ canUse: boolean; reason?: string } | null>(null)
+
+  // Fetch ability status on mount
+  const fetchAbilityStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/game/ability?playerCode=${encodeURIComponent(player.id)}&abilityName=protect`)
+      const data = await response.json()
+      if (data.success) {
+        setAbilityStatus({ canUse: data.canUse, reason: data.reason })
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }, [player.id])
+
+  useEffect(() => {
+    fetchAbilityStatus()
+  }, [fetchAbilityStatus])
 
   const handleProtect = async () => {
     if (!selectedTarget || isProtecting) return
@@ -182,6 +303,7 @@ export const BodyguardActions = ({ player, gameCode, availableTargets, onActionC
       if (result.success) {
         toast.success(result.message, { duration: 5000 })
         setSelectedTarget('')
+        fetchAbilityStatus()
         onActionComplete?.()
       } else {
         toast.error(result.error || 'Protection failed')
@@ -193,6 +315,8 @@ export const BodyguardActions = ({ player, gameCode, availableTargets, onActionC
     }
   }
 
+  const cannotUse = abilityStatus && !abilityStatus.canUse
+
   return (
     <div className="space-y-4 rounded-lg border border-yellow-500/20 bg-yellow-900/10 p-4">
       <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-yellow-300">
@@ -202,29 +326,37 @@ export const BodyguardActions = ({ player, gameCode, availableTargets, onActionC
         Shield a player from harm for this round. Your protection could save a life.
       </p>
 
-      <div className="space-y-3">
-        <select
-          value={selectedTarget}
-          onChange={(e) => setSelectedTarget(e.target.value)}
-          className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
-          disabled={isProtecting}
-        >
-          <option value="">Select player to protect...</option>
-          {availableTargets.filter(t => t.isAlive).map((target) => (
-            <option key={target.id} value={target.id}>
-              {target.name}
-            </option>
-          ))}
-        </select>
+      {cannotUse ? (
+        <div className="text-center py-4">
+          <div className="text-3xl mb-2">🛡️</div>
+          <p className="text-yellow-300 font-semibold">Already Protecting</p>
+          <p className="text-sm text-yellow-200/60 mt-1">{abilityStatus?.reason || 'You are already protecting someone.'}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <select
+            value={selectedTarget}
+            onChange={(e) => setSelectedTarget(e.target.value)}
+            className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
+            disabled={isProtecting}
+          >
+            <option value="">Select player to protect...</option>
+            {availableTargets.filter(t => t.isAlive && t.id !== player.id).map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.name}
+              </option>
+            ))}
+          </select>
 
-        <button
-          onClick={handleProtect}
-          disabled={!selectedTarget || isProtecting}
-          className="w-full rounded-lg bg-yellow-600 px-6 py-3 font-semibold text-white hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
-        >
-          {isProtecting ? 'Protecting...' : 'Protect Player'}
-        </button>
-      </div>
+          <button
+            onClick={handleProtect}
+            disabled={!selectedTarget || isProtecting}
+            className="w-full rounded-lg bg-yellow-600 px-6 py-3 font-semibold text-white hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-yellow-500/20"
+          >
+            {isProtecting ? 'Protecting...' : 'Protect Player'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -233,6 +365,24 @@ export const BodyguardActions = ({ player, gameCode, availableTargets, onActionC
 export const VigilanteActions = ({ player, gameCode, availableTargets, onActionComplete }: RoleActionProps) => {
   const [selectedTarget, setSelectedTarget] = useState('')
   const [isEliminating, setIsEliminating] = useState(false)
+  const [abilityStatus, setAbilityStatus] = useState<{ canUse: boolean; reason?: string; usesRemaining?: number } | null>(null)
+
+  // Fetch ability status on mount
+  const fetchAbilityStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/game/ability?playerCode=${encodeURIComponent(player.id)}&abilityName=vigilante_kill`)
+      const data = await response.json()
+      if (data.success) {
+        setAbilityStatus({ canUse: data.canUse, reason: data.reason, usesRemaining: data.usesRemaining })
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }, [player.id])
+
+  useEffect(() => {
+    fetchAbilityStatus()
+  }, [fetchAbilityStatus])
 
   const handleEliminate = async () => {
     if (!selectedTarget || isEliminating) return
@@ -253,6 +403,7 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
       if (result.success) {
         toast.success(result.message, { duration: 5000 })
         setSelectedTarget('')
+        fetchAbilityStatus()
         onActionComplete?.()
       } else {
         toast.error(result.error || 'Elimination failed')
@@ -264,6 +415,8 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
     }
   }
 
+  const cannotUse = abilityStatus && !abilityStatus.canUse
+
   return (
     <div className="space-y-4 rounded-lg border border-red-500/20 bg-red-900/10 p-4">
       <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-red-300">
@@ -273,11 +426,21 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
         Eliminate a suspected murderer. Warning: If you target an innocent, you'll be eliminated instead!
       </p>
 
-      <div className="space-y-3">
-        <select
-          value={selectedTarget}
-          onChange={(e) => setSelectedTarget(e.target.value)}
-          className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
+      {cannotUse ? (
+        <div className="text-center py-4">
+          <div className="text-3xl mb-2">💫</div>
+          <p className="text-red-300 font-semibold">Power Exhausted</p>
+          <p className="text-sm text-red-200/60 mt-1">{abilityStatus?.reason || 'You have used your one-time elimination power.'}</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {abilityStatus?.usesRemaining !== undefined && (
+            <p className="text-xs text-red-300/70 text-center">Uses remaining: {abilityStatus.usesRemaining}</p>
+          )}
+          <select
+            value={selectedTarget}
+            onChange={(e) => setSelectedTarget(e.target.value)}
+            className="w-full rounded-lg border border-white/20 bg-black/40 px-4 py-3 text-manor-candle"
           disabled={isEliminating}
         >
           <option value="">Select suspected murderer...</option>
@@ -288,14 +451,15 @@ export const VigilanteActions = ({ player, gameCode, availableTargets, onActionC
           ))}
         </select>
 
-        <button
-          onClick={handleEliminate}
-          disabled={!selectedTarget || isEliminating}
-          className="w-full rounded-lg bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/20"
-        >
-          {isEliminating ? 'Eliminating...' : 'Eliminate Suspected Murderer'}
-        </button>
-      </div>
+          <button
+            onClick={handleEliminate}
+            disabled={!selectedTarget || isEliminating}
+            className="w-full rounded-lg bg-red-600 px-6 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/20"
+          >
+            {isEliminating ? 'Eliminating...' : 'Eliminate Suspected Murderer'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -305,6 +469,33 @@ export const GrinchActions = ({ player, gameCode, availableTargets, onActionComp
   const [selectedTarget, setSelectedTarget] = useState('')
   const [isMimicking, setIsMimicking] = useState(false)
   const [mimickedPlayers, setMimickedPlayers] = useState<string[]>([])
+  const [cooldownSeconds, setCooldownSeconds] = useState(0)
+
+  // Fetch cooldown status on mount
+  const fetchCooldown = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/v1/game/ability?playerCode=${encodeURIComponent(player.id)}&abilityName=grinch_mimic`)
+      const data = await response.json()
+      if (data.success && data.cooldownRemaining) {
+        setCooldownSeconds(data.cooldownRemaining)
+      }
+    } catch (error) {
+      // Silently fail
+    }
+  }, [player.id])
+
+  useEffect(() => {
+    fetchCooldown()
+  }, [fetchCooldown])
+
+  // Countdown timer
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return
+    const interval = setInterval(() => {
+      setCooldownSeconds(prev => Math.max(prev - 1, 0))
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [cooldownSeconds])
 
   // Get list of already mimicked players
   useEffect(() => {
@@ -322,7 +513,7 @@ export const GrinchActions = ({ player, gameCode, availableTargets, onActionComp
   )
 
   const handleMimic = async () => {
-    if (!selectedTarget || isMimicking) return
+    if (!selectedTarget || isMimicking || cooldownSeconds > 0) return
 
     setIsMimicking(true)
     try {
@@ -340,6 +531,7 @@ export const GrinchActions = ({ player, gameCode, availableTargets, onActionComp
       if (result.success) {
         toast.success(result.message, { duration: 6000 })
         setSelectedTarget('')
+        fetchCooldown()
         onActionComplete?.()
       } else {
         toast.error(result.error || 'Mimic failed')
@@ -351,6 +543,11 @@ export const GrinchActions = ({ player, gameCode, availableTargets, onActionComp
     }
   }
 
+  const isOnCooldown = cooldownSeconds > 0
+  const cooldownDisplay = isOnCooldown
+    ? `Cooldown: ${Math.floor(cooldownSeconds / 60)}m ${cooldownSeconds % 60}s`
+    : null
+
   return (
     <div className="space-y-4 rounded-lg border border-green-500/20 bg-green-900/10 p-4">
       <h3 className="font-manor text-lg uppercase tracking-[0.25em] text-green-300">
@@ -360,7 +557,13 @@ export const GrinchActions = ({ player, gameCode, availableTargets, onActionComp
         Mimic another player's ability and use it once. <span className="text-red-300 font-semibold">Warning:</span> If you mimic a murderer, you will die!
       </p>
 
-      {availableToMimic.length === 0 ? (
+      {isOnCooldown ? (
+        <div className="text-center py-4">
+          <div className="text-3xl mb-2">⏳</div>
+          <p className="text-green-300 font-semibold">{cooldownDisplay}</p>
+          <p className="text-sm text-green-200/60 mt-1">Your mimic powers are recharging...</p>
+        </div>
+      ) : availableToMimic.length === 0 ? (
         <div className="text-center py-4">
           <p className="text-green-200/60 italic">
             {mimickedPlayers.length > 0
