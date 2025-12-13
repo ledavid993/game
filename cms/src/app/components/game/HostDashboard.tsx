@@ -587,39 +587,34 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
   const handleActivePlayerClick = useCallback(
     (player: Player, event: React.MouseEvent<HTMLDivElement>) => {
       const rect = event.currentTarget.getBoundingClientRect()
-      const scrollY = window.scrollY || document.documentElement.scrollTop
-      const scrollX = window.scrollX || document.documentElement.scrollLeft
       const menuWidth = 240
-      const menuHeight = 220 // Updated to account for vote button
+      const menuMaxHeight = window.innerHeight * 0.7 // 70vh
 
-      let left = rect.left + scrollX
-      let top = rect.bottom + scrollY + 8
+      // Use viewport coordinates for fixed positioning
+      let left = rect.left
+      let top = rect.bottom + 8
 
-      // Ensure menu stays within viewport bounds
       const viewportWidth = window.innerWidth
       const viewportHeight = window.innerHeight
 
       // Adjust horizontal position if menu would overflow
-      if (left + menuWidth > scrollX + viewportWidth) {
-        left = Math.max(scrollX + 16, scrollX + viewportWidth - menuWidth - 16)
+      if (left + menuWidth > viewportWidth - 16) {
+        left = viewportWidth - menuWidth - 16
       }
-
-      // Ensure menu doesn't go off the left edge
-      left = Math.max(left, scrollX + 16)
+      left = Math.max(left, 16)
 
       // Adjust vertical position if menu would overflow
-      if (top + menuHeight > scrollY + viewportHeight) {
-        // Try to position above the clicked element
-        top = rect.top + scrollY - menuHeight - 8
-
-        // If still doesn't fit, position at the bottom of viewport
-        if (top < scrollY + 16) {
-          top = scrollY + viewportHeight - menuHeight - 16
+      if (top + menuMaxHeight > viewportHeight - 16) {
+        // Position above the clicked element if it fits better
+        const topAbove = rect.top - menuMaxHeight - 8
+        if (topAbove > 16) {
+          top = topAbove
+        } else {
+          // Otherwise position at top of viewport
+          top = 16
         }
       }
-
-      // Ensure menu doesn't go off the top edge
-      top = Math.max(top, scrollY + 16)
+      top = Math.max(top, 16)
 
       setPlayerMenuState({ player, position: { top, left } })
       fetchPlayerAbilityStatus(player.id)
@@ -1187,7 +1182,7 @@ export function HostDashboard({ className = '' }: HostDashboardProps) {
               }}
             >
               <div
-                className="absolute w-[240px] max-h-[80vh] flex flex-col rounded-xl border border-white/10 bg-[#10121a]/95 shadow-2xl"
+                className="fixed w-[240px] max-h-[70vh] flex flex-col rounded-xl border border-white/10 bg-[#10121a]/95 shadow-2xl overflow-hidden"
                 style={{
                   top: playerMenuState.position.top,
                   left: playerMenuState.position.left,
