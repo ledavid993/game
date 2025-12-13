@@ -12,13 +12,11 @@ const fadeUp: Variants = {
 
 interface FormData {
   name: string
-  phone: string
   email: string
 }
 
 interface FormErrors {
   name?: string
-  phone?: string
   email?: string
 }
 
@@ -29,21 +27,14 @@ interface RegisteredPlayer {
 }
 
 const validateEmail = (email: string): boolean => {
-  if (!email) return true
+  if (!email) return false
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   return emailRegex.test(email)
-}
-
-const validatePhone = (phone: string): boolean => {
-  if (!phone) return true
-  const phoneRegex = /^[\+]?[\d\s\-\(\)\.]{10,}$/
-  return phoneRegex.test(phone)
 }
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState<FormData>({
     name: '',
-    phone: '',
     email: '',
   })
   const [errors, setErrors] = useState<FormErrors>({})
@@ -57,10 +48,8 @@ export default function RegisterPage() {
         if (value.trim().length < 2) return 'Name must be at least 2 characters'
         return undefined
       case 'email':
-        if (value && !validateEmail(value)) return 'Please enter a valid email address'
-        return undefined
-      case 'phone':
-        if (value && !validatePhone(value)) return 'Please enter a valid phone number'
+        if (!value.trim()) return 'Email is required'
+        if (!validateEmail(value)) return 'Please enter a valid email address'
         return undefined
       default:
         return undefined
@@ -84,7 +73,7 @@ export default function RegisterPage() {
     [formData, validateField]
   )
 
-  const isFormValid = formData.name.trim().length >= 2 && !errors.email && !errors.phone
+  const isFormValid = formData.name.trim().length >= 2 && formData.email.trim() && !errors.name && !errors.email
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -101,8 +90,7 @@ export default function RegisterPage() {
         },
         body: JSON.stringify({
           name: formData.name.trim(),
-          phone: formData.phone.trim() || undefined,
-          email: formData.email.trim() || undefined,
+          email: formData.email.trim(),
         }),
       })
 
@@ -110,7 +98,7 @@ export default function RegisterPage() {
 
       if (data.success) {
         setRegisteredPlayer(data.player)
-        setFormData({ name: '', phone: '', email: '' })
+        setFormData({ name: '', email: '' })
         toast.success('Registration successful!')
       } else {
         toast.error(data.error || 'Registration failed')
@@ -245,35 +233,10 @@ export default function RegisterPage() {
 
                 <div>
                   <label
-                    htmlFor="phone"
-                    className="block font-body text-sm uppercase tracking-wider text-manor-parchment/80 mb-2"
-                  >
-                    Phone <span className="text-manor-parchment/50">(optional)</span>
-                  </label>
-                  <input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleChange('phone', e.target.value)}
-                    onBlur={() => handleBlur('phone')}
-                    placeholder="Enter your phone number"
-                    className={`w-full px-4 py-3 rounded-lg border bg-manor-shadow/60 text-manor-candle placeholder:text-manor-parchment/40 focus:outline-none focus:ring-2 transition-colors ${
-                      errors.phone
-                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/30'
-                        : 'border-white/10 focus:border-manor-wine/50 focus:ring-manor-wine/30'
-                    }`}
-                  />
-                  {errors.phone && (
-                    <p className="mt-1 text-sm text-red-400">{errors.phone}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label
                     htmlFor="email"
                     className="block font-body text-sm uppercase tracking-wider text-manor-parchment/80 mb-2"
                   >
-                    Email <span className="text-manor-parchment/50">(optional)</span>
+                    Email <span className="text-manor-ember">*</span>
                   </label>
                   <input
                     id="email"
