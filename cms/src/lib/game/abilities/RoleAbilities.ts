@@ -179,7 +179,7 @@ export class MurdererKillAbility implements RoleAbility {
 export class DetectiveInvestigateAbility implements RoleAbility {
   name = ABILITY_TYPES.INVESTIGATE
   role: PlayerRole = 'detective'
-  cooldownMinutes = 5
+  cooldownMinutes = 15
   requiresTarget = true
 
   async canUse(actor: GamePlayer, game: Game): Promise<AbilityStatus> {

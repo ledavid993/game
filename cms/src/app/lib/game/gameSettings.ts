@@ -118,7 +118,7 @@ export const DEFAULT_ROLE_DISTRIBUTION: RoleDistribution = {
 
 export const DEFAULT_ROLE_COOLDOWNS: RoleCooldowns = {
   murdererKillCooldown: 10,
-  detectiveInvestigateCooldown: 5,
+  detectiveInvestigateCooldown: 15,
   reviverReviveCooldown: 15,
   bodyguardProtectionDuration: 30,
   vigilanteMaxKills: 1,
